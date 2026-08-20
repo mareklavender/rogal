@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plain — a language that explains itself</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F4F2F7;
+    --paper-deep:#E9E5F2;
+    --ditto:#4A3796;
+    --ditto-soft:#8E7FC9;
+    --ink:#241E33;
+    --correction:#B3283F;
+    --verified:#1D6F58;
+    --rule:rgba(74,55,150,.14);
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --display:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
+    --body:"Newsreader",Georgia,serif;
+    --lh:1.55rem;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--body);
+    font-size:17px;
+    line-height:1.55;
+    -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 18px 64px}
+
+  /* ---- masthead ---- */
+  .masthead{border-bottom:2px solid var(--ditto);padding-bottom:16px;margin-bottom:22px}
+  .eyebrow{
+    font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--ditto-soft);margin:0 0 10px
+  }
+  .wordmark{
+    font-family:var(--display);font-weight:800;font-size:clamp(3.4rem,16vw,6.5rem);
+    line-height:.86;letter-spacing:-.045em;color:var(--ditto);margin:0;
+    text-shadow:3px 3px 0 rgba(142,127,201,.42);
+  }
+  .standfirst{
+    font-family:var(--body);font-size:clamp(1.02rem,3.6vw,1.22rem);
+    margin:14px 0 0;max-width:44ch;color:var(--ink)
+  }
+  .standfirst em{font-style:italic;color:var(--ditto)}
+
+  /* ---- exercises ---- */
+  .exercises{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 14px}
+  .chip{
+    font-family:var(--mono);font-size:12px;letter-spacing:.02em;
+    background:transparent;border:1px solid var(--rule);color:var(--ditto);
+    padding:7px 11px;border-radius:2px;cursor:pointer;
+  }
+  .chip:hover{background:var(--paper-deep)}
+  .chip[aria-pressed="true"]{background:var(--ditto);color:var(--paper);border-color:var(--ditto)}
+  .chip.broken[aria-pressed="true"]{background:var(--correction);border-color:var(--correction)}
+  .chip.broken{color:var(--correction);border-color:rgba(179,40,63,.35)}
+
+  /* ---- panes ---- */
+  .panes{display:grid;grid-template-columns:1fr;gap:18px}
+  @media(min-width:920px){.panes{grid-template-columns:1fr 1fr;gap:22px;align-items:start}}
+
+  .pane{border:1px solid var(--rule);background:#fff}
+  .pane-head{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:9px 12px;border-bottom:1px solid var(--rule);background:var(--paper-deep)
+  }
+  .pane-title{font-family:var(--mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--ditto)}
+  .pane-meta{font-family:var(--mono);font-size:11px;color:var(--ditto-soft)}
+
+  /* ---- editor ---- */
+  .editor{display:flex;background:#fff}
+  .gutter{
+    font-family:var(--mono);font-size:16px;line-height:var(--lh);
+    padding:14px 8px 14px 12px;text-align:right;color:var(--ditto-soft);
+    background:#fff;border-right:1px solid var(--rule);user-select:none;min-width:3.2ch;overflow:hidden
+  }
+  .gutter b{display:block;font-weight:400}
+  .gutter b.flag{color:var(--correction);font-weight:700}
+  #code{
+    flex:1;font-family:var(--mono);font-size:16px;line-height:var(--lh);
+    border:0;outline:0;resize:none;padding:14px 12px;color:var(--ink);
+    background:#fff;min-height:340px;width:100%;tab-size:2;white-space:pre;overflow-x:auto
+  }
+  #code:focus{background:#FDFCFF}
+
+  .controls{display:flex;gap:8px;align-items:center;padding:10px 12px;border-top:1px solid var(--rule);background:var(--paper-deep)}
+  .run{
+    font-family:var(--display);font-weight:600;font-size:15px;letter-spacing:-.01em;
+    background:var(--ditto);color:var(--paper);border:0;padding:10px 20px;border-radius:2px;cursor:pointer
+  }
+  .run:hover{background:#3B2B7A}
+  .kbd{font-family:var(--mono);font-size:11px;color:var(--ditto-soft)}
+
+  /* ---- output ---- */
+  .out{
+    padding:0 0 8px;min-height:180px;
+    background:
+      repeating-linear-gradient(to bottom,transparent 0,transparent calc(var(--lh) - 1px),var(--rule) calc(var(--lh) - 1px),var(--rule) var(--lh));
+    background-position:0 14px;
+  }
+  .out-inner{padding:14px 14px 0}
+  .line{
+    font-family:var(--mono);font-size:15px;line-height:var(--lh);
+    white-space:pre-wrap;word-break:break-word;margin:0
+  }
+  .empty{font-family:var(--body);font-style:italic;color:var(--ditto-soft);font-size:15.5px;line-height:var(--lh);margin:0}
+  .empty code{font-family:var(--mono);font-style:normal;font-size:13.5px;color:var(--ditto)}
+
+  /* ---- the correction (signature) ---- */
+  .correction{
+    margin:14px 14px 0;border:1px solid var(--correction);border-left-width:5px;
+    background:#FFF7F8;padding:12px 13px;
+    animation:slip .22s ease-out
+  }
+  @keyframes slip{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+  .correction-head{
+    font-family:var(--mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;
+    color:var(--correction);margin-bottom:9px
+  }
+  .correction-code{
+    font-family:var(--mono);font-size:14px;line-height:1.4;margin:0 0 10px;
+    white-space:pre;overflow-x:auto;color:var(--ink)
+  }
+  .correction-code i{font-style:normal;color:var(--correction);font-weight:700;display:block}
+  .correction-msg{font-family:var(--body);font-size:17px;margin:0 0 5px;color:var(--ink)}
+  .correction-hint{font-family:var(--body);font-size:15.5px;font-style:italic;margin:0;color:#6A3040}
+  .fix{
+    margin-top:11px;font-family:var(--mono);font-size:12.5px;
+    background:var(--correction);color:#fff;border:0;padding:8px 13px;border-radius:2px;cursor:pointer
+  }
+  .fix:hover{background:#8E1F32}
+
+  /* ---- reference ---- */
+  .reference{margin-top:26px;border-top:2px solid var(--ditto);padding-top:18px}
+  .ref-title{font-family:var(--display);font-weight:800;font-size:1.5rem;letter-spacing:-.02em;margin:0 0 4px;color:var(--ditto)}
+  .ref-sub{margin:0 0 18px;font-size:16px;color:var(--ink);opacity:.8;max-width:52ch}
+  .ref-grid{display:grid;grid-template-columns:1fr;gap:20px}
+  @media(min-width:720px){.ref-grid{grid-template-columns:repeat(2,1fr);gap:22px 30px}}
+  .ref-block h3{
+    font-family:var(--mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;
+    color:var(--ditto-soft);margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid var(--rule)
+  }
+  .ref-row{display:grid;grid-template-columns:minmax(11ch,auto) 1fr;gap:6px 14px;align-items:baseline;padding:3px 0}
+  .ref-row code{font-family:var(--mono);font-size:13px;color:var(--ditto);word-break:break-word}
+  .ref-row span{font-size:15px;line-height:1.4}
+
+  .footnote{margin-top:26px;padding-top:14px;border-top:1px solid var(--rule);font-size:14.5px;color:var(--ink);opacity:.75;max-width:62ch}
+
+  :focus-visible{outline:2px solid var(--ditto);outline-offset:2px}
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">A language proposal · v__VERSION__ · runs entirely in this page</p>
+    <h1 class="wordmark">Plain</h1>
+    <p class="standfirst">Twenty-nine words, one way to write each thing, and errors that tell you <em>what to do next</em> instead of what went wrong internally.</p>
+  </header>
+
+  <div class="exercises" id="exercises"></div>
+
+  <div class="panes">
+    <section class="pane">
+      <div class="pane-head">
+        <span class="pane-title">Program</span>
+        <span class="pane-meta" id="charcount"></span>
+      </div>
+      <div class="editor">
+        <div class="gutter" id="gutter"></div>
+        <textarea id="code" spellcheck="false" autocapitalize="off" autocorrect="off" aria-label="Program"></textarea>
+      </div>
+      <div class="controls">
+        <button class="run" id="run">Run the program</button>
+        <span class="kbd">or Ctrl + Enter</span>
+      </div>
+    </section>
+
+    <section class="pane">
+      <div class="pane-head">
+        <span class="pane-title">What it shows</span>
+        <span class="pane-meta" id="status"></span>
+      </div>
+      <div class="out" id="out"></div>
+    </section>
+  </div>
+
+  <section class="reference">
+    <h2 class="ref-title">The whole language</h2>
+    <p class="ref-sub">Not a summary — 29 words and 20 built-in actions is everything Plain has. Nothing to install, nothing to import, no hidden second half.</p>
+    <div class="ref-grid">
+      <div class="ref-block">
+        <h3>Instructions</h3>
+        <div class="ref-row"><code>set x to 5</code><span>Create a name. Fails if it already exists.</span></div>
+        <div class="ref-row"><code>change x to 9</code><span>Give an existing name a new value. Fails if it doesn't exist.</span></div>
+        <div class="ref-row"><code>show x</code><span>Display something. Commas show several on one line.</span></div>
+        <div class="ref-row"><code>if … end</code><span>With optional <code>else</code> and <code>else if</code>.</span></div>
+        <div class="ref-row"><code>for each n in xs</code><span>Go through a list or the letters of text.</span></div>
+        <div class="ref-row"><code>repeat 5 times</code><span>Do something a fixed number of times.</span></div>
+        <div class="ref-row"><code>while test</code><span>Keep going until the test is false.</span></div>
+        <div class="ref-row"><code>stop</code><span>Leave the loop early.</span></div>
+        <div class="ref-row"><code>make name(a)</code><span>Create an action. <code>give</code> hands a value back.</span></div>
+      </div>
+      <div class="ref-block">
+        <h3>Comparing</h3>
+        <div class="ref-row"><code>is</code><span>Exactly the same. There is no <code>==</code>.</span></div>
+        <div class="ref-row"><code>is not</code><span>Different.</span></div>
+        <div class="ref-row"><code>is more than</code><span>Bigger.</span></div>
+        <div class="ref-row"><code>is less than</code><span>Smaller.</span></div>
+        <div class="ref-row"><code>is at least</code><span>Bigger or the same.</span></div>
+        <div class="ref-row"><code>is at most</code><span>Smaller or the same.</span></div>
+        <div class="ref-row"><code>and or not</code><span>Combine tests.</span></div>
+      </div>
+      <div class="ref-block">
+        <h3>Kinds of value</h3>
+        <div class="ref-row"><code>12  3.5</code><span>Numbers. <code>+ - * /</code> and <code>%</code> for remainder.</span></div>
+        <div class="ref-row"><code>"hello"</code><span>Text. <code>+</code> joins it, numbers included.</span></div>
+        <div class="ref-row"><code>true false</code><span>The only things an <code>if</code> accepts.</span></div>
+        <div class="ref-row"><code>[1, 2, 3]</code><span>A list. <strong>Items count from 1</strong>, so <code>xs[1]</code> is the first.</span></div>
+        <div class="ref-row"><code>{name: "Ada"}</code><span>A record. Read fields with <code>person.name</code>.</span></div>
+        <div class="ref-row"><code>nothing</code><span>No value yet.</span></div>
+        <div class="ref-row"><code># note</code><span>A note to yourself, ignored when running.</span></div>
+      </div>
+      <div class="ref-block">
+        <h3>Built in, always available</h3>
+        <div class="ref-row"><code>count has</code><span>How many; whether something is in there.</span></div>
+        <div class="ref-row"><code>add remove</code><span>Give back a new list with an item added or taken out.</span></div>
+        <div class="ref-row"><code>first last reverse</code><span>Reach into a list, or turn it round.</span></div>
+        <div class="ref-row"><code>sum</code><span>Add up a list of numbers.</span></div>
+        <div class="ref-row"><code>sort_up sort_down</code><span>In order. Add a field name to sort records: <code>sort_up(people, "born")</code></span></div>
+        <div class="ref-row"><code>join split</code><span>Text to list and back.</span></div>
+        <div class="ref-row"><code>upper lower trim</code><span>Tidy up text.</span></div>
+        <div class="ref-row"><code>round random</code><span>Numbers. <code>round(x, 2)</code> for decimal places.</span></div>
+        <div class="ref-row"><code>text number keys</code><span>Convert between kinds; list a record's fields.</span></div>
+      </div>
+    </div>
+    <p class="footnote">Five decisions do most of the work: <strong>blocks end with <code>end</code></strong>, so indentation can never break a program; <strong>comparisons are words</strong>, so <code>=</code> and <code>==</code> can't be confused; <strong><code>set</code> creates and <code>change</code> alters</strong>, so a typo can never quietly make a second variable; <strong>actions see only what you pass in</strong>, so nothing changes at a distance; and <strong>lists count from 1</strong>, matching how people already count.</p>
+  </section>
+</div>
+
+<script>
+/*__CORE__*/
+</script>
+
+<script>
+const EXAMPLES = [
+  { name:"hello", code:
+`set name to "Mark"
+show "Hello, " + name
+
+# Numbers join onto text with no fuss
+set finds to 3
+show "Discoveries today: " + finds`},
+
+  { name:"lists", code:
+`set prices to [12.4, 8.9, 31.2, 6.75]
+
+show "How many:", count(prices)
+show "Total:", sum(prices)
+show "Cheapest first:", sort_up(prices)
+show "Dearest first:", sort_down(prices)
+
+# set creates it, change alters it
+set total to 0
+for each price in prices
+  change total to total + price
+end
+show "Average:", round(total / count(prices), 2)`},
+
+  { name:"decisions", code:
+`set score to 9
+
+if score is at least 9
+  show "Publish it"
+else if score is at least 7
+  show "Watch it"
+else
+  show "Skip it"
+end
+
+# Only true or false may go in an if.
+if score is more than 5 and score is not 12
+  show "In range"
+end`},
+
+  { name:"actions", code:
+`make double(n)
+  give n * 2
+end
+
+show double(21)
+
+# An action sees only what you pass in,
+# so its first line lists everything it uses.
+make longest(words)
+  set best to ""
+  for each word in words
+    if count(word) is more than count(best)
+      change best to word
+    end
+  end
+  give upper(best)
+end
+
+show longest(["one", "seventeen", "four"])`},
+
+  { name:"records", code:
+`set people to [
+  {name: "Grace", born: 1906},
+  {name: "Ada", born: 1815},
+  {name: "Alan", born: 1912}
+]
+
+for each person in people
+  show person.name + " — born " + person.born
+end
+
+show ""
+show "Earliest first:"
+for each person in sort_up(people, "born")
+  show "  " + person.name
+end`},
+
+  { name:"a mistake", broken:true, code:
+`set total to 0
+set prices to [10, 20, 30]
+
+for each price in prices
+  change total to total + price
+end
+
+# Three things are wrong below.
+# Run it and read what comes back.
+show "Sum is " + totl
+set total to 99
+show prices[4]`},
+];
+
+const codeEl = document.getElementById("code");
+const gutterEl = document.getElementById("gutter");
+const outEl = document.getElementById("out");
+const statusEl = document.getElementById("status");
+const countEl = document.getElementById("charcount");
+const chipsEl = document.getElementById("exercises");
+let current = 0;
+
+EXAMPLES.forEach((ex, i) => {
+  const b = document.createElement("button");
+  b.className = "chip" + (ex.broken ? " broken" : "");
+  b.textContent = ex.name;
+  b.setAttribute("aria-pressed", i === 0 ? "true" : "false");
+  b.addEventListener("click", () => load(i));
+  chipsEl.appendChild(b);
+});
+
+function load(i) {
+  current = i;
+  [...chipsEl.children].forEach((c, j) => c.setAttribute("aria-pressed", j === i ? "true" : "false"));
+  codeEl.value = EXAMPLES[i].code;
+  refresh();
+  execute();
+}
+
+function refresh(flagLine) {
+  const lines = codeEl.value.split("\n").length;
+  let g = "";
+  for (let i = 1; i <= lines; i++) g += `<b${i === flagLine ? ' class="flag"' : ""}>${i}</b>`;
+  gutterEl.innerHTML = g;
+  const chars = codeEl.value.length;
+  countEl.textContent = lines + (lines === 1 ? " line" : " lines") + " · " + chars + " characters";
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function execute() {
+  const src = codeEl.value;
+  const started = performance.now();
+  const result = run(src);
+  const ms = Math.max(1, Math.round(performance.now() - started));
+
+  refresh(result.error ? result.error.line : null);
+  outEl.innerHTML = "";
+  const inner = document.createElement("div");
+  inner.className = "out-inner";
+
+  if (result.output.length === 0 && !result.error) {
+    inner.innerHTML = `<p class="empty">Ran without showing anything. Use <code>show</code> to put something here.</p>`;
+  }
+  for (const line of result.output) {
+    const p = document.createElement("p");
+    p.className = "line";
+    p.textContent = line;
+    inner.appendChild(p);
+  }
+  outEl.appendChild(inner);
+
+  if (result.error) {
+    outEl.appendChild(buildCorrection(result.error, src));
+    statusEl.textContent = "stopped at line " + result.error.line;
+  } else {
+    statusEl.textContent = result.output.length + (result.output.length === 1 ? " line · " : " lines · ") + ms + " ms";
+  }
+}
+
+function buildCorrection(err, src) {
+  const box = document.createElement("div");
+  box.className = "correction";
+
+  const srcLine = (src.split("\n")[err.line - 1] || "").replace(/\t/g, "  ");
+  const carets = " ".repeat(Math.max(0, err.col - 1)) + "^".repeat(Math.max(1, Math.min(err.len, 80)));
+
+  box.innerHTML =
+    `<div class="correction-head">Line ${err.line}</div>` +
+    `<pre class="correction-code">${escapeHtml(srcLine)}<i>${escapeHtml(carets)}</i></pre>` +
+    `<p class="correction-msg">${escapeHtml(err.message)}</p>` +
+    (err.hint ? `<p class="correction-hint">${escapeHtml(err.hint)}</p>` : "");
+
+  if (err.fix) {
+    const btn = document.createElement("button");
+    btn.className = "fix";
+    btn.textContent = `Change it to  ${err.fix.replacement}`;
+    btn.addEventListener("click", () => applyFix(err.fix));
+    box.appendChild(btn);
+  }
+  return box;
+}
+
+function applyFix(fix) {
+  const lines = codeEl.value.split("\n");
+  const idx = fix.line - 1;
+  if (idx < 0 || idx >= lines.length) return;
+  const l = lines[idx];
+  if (fix.find) {
+    lines[idx] = l.replace(fix.find, fix.replacement);
+  } else {
+    lines[idx] = l.slice(0, fix.col - 1) + fix.replacement + l.slice(fix.col - 1 + fix.len);
+  }
+  codeEl.value = lines.join("\n");
+  refresh();
+  execute();
+}
+
+codeEl.addEventListener("input", () => refresh());
+codeEl.addEventListener("scroll", () => { gutterEl.scrollTop = codeEl.scrollTop; });
+codeEl.addEventListener("keydown", e => {
+  if (e.key === "Tab") {
+    e.preventDefault();
+    const s = codeEl.selectionStart, t = codeEl.selectionEnd;
+    codeEl.value = codeEl.value.slice(0, s) + "  " + codeEl.value.slice(t);
+    codeEl.selectionStart = codeEl.selectionEnd = s + 2;
+    refresh();
+  }
+  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); execute(); }
+});
+document.getElementById("run").addEventListener("click", execute);
+
+load(0);
+</script>
+</body>
+</html>
