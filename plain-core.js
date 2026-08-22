@@ -1,9 +1,11 @@
-const PLAIN_VERSION = "0.2.0";
+const PLAIN_VERSION = "0.3.0";
 
 /* ============================================================
    Plain — core language
-   set/change · sealed actions · sort_up/sort_down · immutable lists
+   set/change · sealed actions · value semantics · sort_up/sort_down
    ============================================================ */
+
+const MAX_DEPTH = 300;
 
 const KEYWORDS = new Set([
   "set","change","to","show","if","else","end","for","each","in","repeat","times",
@@ -100,7 +102,7 @@ function tokenise(src) {
 /* ---------- parser ---------- */
 
 class Parser {
-  constructor(toks) { this.toks = toks; this.pos = 0; }
+  constructor(toks) { this.toks = toks; this.pos = 0; this.blockDepth = 0; }
 
   peek(o = 0) { return this.toks[Math.min(this.pos + o, this.toks.length - 1)]; }
   next() { return this.toks[this.pos++]; }
@@ -136,6 +138,7 @@ class Parser {
 
   parseBlock(closers, opener) {
     const body = [];
+    this.blockDepth++;
     this.skipBlank();
     while (true) {
       const t = this.peek();
@@ -146,6 +149,7 @@ class Parser {
       body.push(this.parseStatement());
       this.skipBlank();
     }
+    this.blockDepth--;
     return { kind: "block", body };
   }
 
@@ -296,6 +300,9 @@ class Parser {
 
   parseMake() {
     const kw = this.next();
+    if (this.blockDepth > 0)
+      throw new PlainError(`Actions can only be made at the top level of a program.`, kw,
+        { hint: `Move this "make" above the block it's inside. Actions can call each other, so nothing is lost.` });
     const nameTok = this.peek();
     if (nameTok.type !== "name")
       throw new PlainError(`After "make" I need a name for the action.`, nameTok,
@@ -549,6 +556,18 @@ function sameValue(a, b) {
   return a === b;
 }
 
+// Every binding takes a copy, so two names can never share one list or record.
+function copyValue(v) {
+  if (v === null || typeof v !== "object") return v;
+  if (Array.isArray(v)) return v.map(copyValue);
+  if (isRecord(v)) {
+    const out = {};
+    for (const k of Object.keys(v.fields)) out[k] = copyValue(v.fields[k]);
+    return makeRecord(out);
+  }
+  return v;                       // actions are definitions, not data
+}
+
 // Ordering for text: capitals and accents ignored, with an exact tiebreak
 // so the result is still a total order.
 let baseCollator = null, exactCollator = null;
@@ -644,6 +663,9 @@ function findCreationSite(node, name, enclosing) {
   if (node.kind === "set" && node.target && node.target.kind === "name" && node.target.name === name)
     return enclosing ? { blockTok: enclosing, setTok: node.nameTok } : null;
 
+  if (node.kind === "make" && node.name === name)
+    return enclosing ? { blockTok: enclosing, setTok: node.nameTok, madeWith: "make" } : { madeWith: "make", topLevel: true };
+
   if (node.kind === "for" && node.name === name && enclosing !== null)
     return { blockTok: node.tok, setTok: node.nameTok, loopVar: true };
 
@@ -686,6 +708,7 @@ class Interpreter {
     installBuiltins(this.builtins, this);
     this.globals = new Scope(this.builtins, "global");
     this.program = null;
+    this.depth = 0;
   }
 
   tick(tok) {
@@ -725,7 +748,7 @@ class Interpreter {
     this.tick(node.tok);
     switch (node.kind) {
       case "set": {
-        const value = this.eval(node.value, scope);
+        const value = copyValue(this.eval(node.value, scope));
         this.declare(scope, node.target.name, value, node.nameTok, "set");
         return;
       }
@@ -751,7 +774,10 @@ class Interpreter {
         const n = this.eval(node.count, scope);
         if (typeof n !== "number")
           throw new PlainError(`"repeat" needs a number of times, but got ${describeValue(n)}.`, node.tok);
-        for (let i = 0; i < Math.floor(n); i++) {
+        if (Math.floor(n) !== n)
+          throw new PlainError(`"repeat" needs a whole number of times, but got ${fmtNumber(n)}.`, node.tok,
+            { hint: `Use round(${fmtNumber(n)}) for ${fmtNumber(roundAwayFromZero(n))} times, or write the whole number you meant.` });
+        for (let i = 0; i < n; i++) {
           this.tick(node.tok);
           try { this.execBlock(node.body, new Scope(scope)); }
           catch (e) { if (e instanceof StopSignal) break; throw e; }
@@ -771,7 +797,7 @@ class Interpreter {
         for (const item of items) {
           this.tick(node.tok);
           const inner = new Scope(scope);
-          inner.define(node.name, item);
+          inner.define(node.name, copyValue(item));
           try { this.execBlock(node.body, inner); }
           catch (e) { if (e instanceof StopSignal) break; throw e; }
         }
@@ -802,7 +828,7 @@ class Interpreter {
   }
 
   execChange(node, scope) {
-    const value = this.eval(node.value, scope);
+    const value = copyValue(this.eval(node.value, scope));
     const t = node.target;
 
     if (t.kind === "name") {
@@ -812,6 +838,16 @@ class Interpreter {
     if (t.kind === "field") {
       const obj = this.eval(t.object, scope);
       if (!isRecord(obj)) throw new PlainError(`I can only change a field on a record, but this is ${typeWord(obj)}.`, t.tok);
+      if (!(t.field in obj.fields)) {
+        const keys = Object.keys(obj.fields);
+        const guess = nearest(t.field, keys);
+        throw new PlainError(`This record has no field called "${t.field}", so there's nothing to change.`, t.tok, {
+          hint: keys.length
+            ? `It has: ${keys.join(", ")}. A record's fields are fixed when you create it.`
+            : `It has no fields at all. A record's fields are fixed when you create it.`,
+          fix: guess ? { line: t.tok.line, col: t.tok.col, len: t.field.length, replacement: guess } : null
+        });
+      }
       obj.fields[t.field] = value;
       return;
     }
@@ -842,11 +878,17 @@ class Interpreter {
     }
 
     const site = this.program ? findCreationSite(this.program, name, null) : null;
+    if (site && site.topLevel) {
+      throw new PlainError(`I don't know what "${name}" is yet.`, tok,
+        { hint: `There's an action called "${name}" further down. Actions have to be made before the line that uses them.` });
+    }
     if (site) {
       throw new PlainError(`"${name}" only exists inside the "${site.blockTok.text}" on line ${site.blockTok.line}.`, tok,
         { hint: site.loopVar
             ? `A loop's name only lasts for the loop. To keep something, create it before: set kept to nothing, then "change kept to ${name}" inside.`
-            : `Names made inside a block are forgotten at its "end". Create it before the block instead: set ${name} to nothing` });
+            : site.madeWith === "make"
+              ? `Actions made inside a block are forgotten at its "end". Move the "make" to the top level.`
+              : `Names made inside a block are forgotten at its "end". Create it before the block instead: set ${name} to nothing` });
     }
 
     const guess = suggestName(name, scope);
@@ -863,6 +905,9 @@ class Interpreter {
   checkIndex(list, idx, tok) {
     if (typeof idx !== "number")
       throw new PlainError(`A list position must be a number, but got ${describeValue(idx)}.`, tok);
+    if (Math.floor(idx) !== idx)
+      throw new PlainError(`A list position must be a whole number, but got ${fmtNumber(idx)}.`, tok,
+        { hint: `Positions count 1, 2, 3 and so on. Use round(...) if this came from a calculation.` });
     const i = Math.floor(idx);
     if (i < 1 || i > list.length)
       throw new PlainError(
@@ -919,6 +964,9 @@ class Interpreter {
         if (Array.isArray(obj)) { this.checkIndex(obj, idx, node.tok); return obj[Math.floor(idx) - 1]; }
         if (typeof obj === "string") {
           if (typeof idx !== "number") throw new PlainError(`A position must be a number.`, node.tok);
+          if (Math.floor(idx) !== idx)
+            throw new PlainError(`A letter position must be a whole number, but got ${fmtNumber(idx)}.`, node.tok,
+              { hint: `Letters are numbered 1, 2, 3 and so on.` });
           const i = Math.floor(idx);
           if (i < 1 || i > obj.length)
             throw new PlainError(`You asked for letter ${fmtNumber(idx)}, but this text has ${obj.length}.`, node.tok,
@@ -1030,9 +1078,17 @@ class Interpreter {
           node.tok, { hint: callee.params.length ? `It expects: ${callee.params.join(", ")}` : `It expects nothing at all.` });
       // sealed: an action sees its inputs and the built-ins, nothing else
       const inner = new Scope(this.builtins, "action");
-      callee.params.forEach((p, i) => inner.define(p, args[i]));
+      callee.params.forEach((p, i) => inner.define(p, copyValue(args[i])));
+      this.depth++;
+      if (this.depth > MAX_DEPTH) {
+        this.depth--;
+        throw new PlainError(
+          `"${callee.name}" has called itself ${MAX_DEPTH} times without finishing.`, node.tok,
+          { hint: `Every path through an action must eventually reach a "give" that doesn't call it again. Check the test that's meant to stop it.` });
+      }
       try { this.execBlock(callee.body, inner); }
       catch (e) { if (e instanceof GiveSignal) return e.value; throw e; }
+      finally { this.depth--; }
       return null;
     }
     throw new PlainError(`${describeValue(callee)} is not something I can run.`, node.tok,
@@ -1177,6 +1233,9 @@ function installBuiltins(scope, interp) {
   def("join", ["list", "separator"], (a, n) => {
     need(a, 2, "join", n);
     const l = expectList(a[0], "join", n);
+    if (Array.isArray(a[1]))
+      throw new PlainError(`"join" turns one list into text, using a separator.`, n.tok,
+        { hint: `To combine two lists into one, use a + b instead.` });
     expectText(a[1], "join", n);
     return l.map(toDisplay).join(a[1]);
   });
@@ -1205,6 +1264,9 @@ function installBuiltins(scope, interp) {
     need(a, 2, "random", n);
     if (typeof a[0] !== "number" || typeof a[1] !== "number")
       throw new PlainError(`"random" needs two numbers.`, n.tok);
+    for (const x of a) if (Math.floor(x) !== x)
+      throw new PlainError(`"random" needs whole numbers, but got ${fmtNumber(x)}.`, n.tok,
+        { hint: `random(1, 6) gives a whole number from 1 to 6.` });
     const lo = Math.ceil(Math.min(a[0], a[1])), hi = Math.floor(Math.max(a[0], a[1]));
     return lo + Math.floor(Math.random() * (hi - lo + 1));
   });
@@ -1248,6 +1310,10 @@ function run(source) {
       return { output, error: { line: 1, col: 1, len: 1, message: `"stop" only works inside a loop.`, hint: null, fix: null } };
     if (e && e.plain)
       return { output, error: { line: e.line, col: e.col, len: e.len, message: e.message, hint: e.hint, fix: e.fix } };
+    if (e instanceof RangeError || /call stack|too much recursion|stack size/i.test(String(e && e.message)))
+      return { output, error: { line: 1, col: 1, len: 1,
+        message: "This program nested too deeply and had to be stopped.",
+        hint: "An action is calling itself, or calls are nested further than Plain can follow.", fix: null } };
     return { output, error: { line: 1, col: 1, len: 1, message: "Something went wrong inside Plain: " + e.message, hint: null, fix: null } };
   }
 }

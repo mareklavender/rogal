@@ -89,6 +89,60 @@ fails("actions cannot see outside names",
   `set tax to 0.2\nmake total(a)\n  give a * tax\nend\nshow total(1)`, "can't see outside");
 fails("actions cannot change outside names",
   `set tally to 0\nmake bump()\n  change tally to 1\nend\nbump()`, "can't see outside");
+
+/* ---------- value semantics ---------- */
+
+shows("a copied list is independent",
+  `set a to [1, 2, 3]\nset b to a\nchange a[1] to 99\nshow a\nshow b`, ["[99, 2, 3]", "[1, 2, 3]"]);
+shows("a copied record is independent",
+  `set p to {n: 1}\nset q to p\nchange p.n to 9\nshow p, q`, ["{n: 9} {n: 1}"]);
+shows("an action cannot alter what it is given",
+  `set data to [1, 2]\nmake wreck(xs)\n  change xs[1] to 99\n  give 0\nend\nshow wreck(data)\nshow data`, ["0", "[1, 2]"]);
+shows("an action cannot alter a record it is given",
+  `set p to {n: 1}\nmake wreck(r)\n  change r.n to 99\n  give 0\nend\nshow wreck(p)\nshow p`, ["0", "{n: 1}"]);
+shows("a loop name is a copy",
+  `set people to [{n: 1}]\nfor each person in people\n  change person.n to 99\nend\nshow people`, ["[{n: 1}]"]);
+shows("nested structures copy all the way down",
+  `set a to {items: [1, 2]}\nset b to a\nchange a.items[1] to 9\nshow b`, ["{items: [1, 2]}"]);
+
+/* ---------- recursion ---------- */
+
+fails("runaway recursion is caught",
+  `make bomb(n)\n  give bomb(n - 1)\nend\nshow bomb(5)`, "called itself 300 times");
+shows("recursion within the limit still works",
+  `make down(n)\n  if n is 0\n    give 0\n  end\n  give down(n - 1)\nend\nshow down(250)`, ["0"]);
+shows("repeated calls do not accumulate depth",
+  `make f(n)\n  give n\nend\nset t to 0\nrepeat 500 times\n  change t to t + f(1)\nend\nshow t`, ["500"]);
+
+/* ---------- whole numbers ---------- */
+
+fails("repeat needs a whole number", `repeat 2.7 times\n  show "x"\nend`, "whole number");
+fails("a list position must be whole", `show [1,2,3][2.9]`, "whole number");
+fails("a letter position must be whole", `show "abc"[1.5]`, "whole number");
+fails("random needs whole numbers", `show random(1.5, 3)`, "whole numbers");
+shows("whole numbers still work", `repeat 2 times\n  show "x"\nend`, ["x", "x"]);
+
+/* ---------- records have a fixed shape ---------- */
+
+fails("change cannot invent a field",
+  `set p to {name: "Ada"}\nchange p.age to 36`, "nothing to change");
+fails("a misspelled field is caught",
+  `set p to {name: "Ada", age: 36}\nchange p.aeg to 40`, "age");
+
+/* ---------- make at the top level ---------- */
+
+fails("no nested make",
+  `make outer()\n  make inner()\n    give 1\n  end\n  give 1\nend`, "top level");
+fails("no make inside a loop",
+  `for each x in [1]\n  make f()\n    give 1\n  end\nend`, "top level");
+fails("an action used before it is made says so",
+  `show f()\nmake f()\n  give 1\nend`, "further down");
+
+/* ---------- join points the right way ---------- */
+
+fails("join with two lists suggests +", `show join([1,2], [3])`, "a + b");
+shows("two lists combine with +", `show [1, 2] + [3]`, ["[1, 2, 3]"]);
+shows("add puts one item on the end", `show add([1, 2], [3])`, ["[1, 2, [3]]"]);
 fails("wrong number of inputs",
   `make double(n)\n  give n * 2\nend\nshow double(1, 2)`, "needs 1 value");
 fails("duplicate input names", `make f(a, a)\n  give a\nend`, "already has an input");

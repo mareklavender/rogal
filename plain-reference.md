@@ -1,6 +1,6 @@
 # Plain — Language Reference
 
-**Version 0.2** · Complete. Every word the language has is in this document.
+**Version 0.3** · Complete. Every word the language has is in this document.
 
 Plain has 29 words and 20 built-in actions. That is the whole language. There is nothing to install, nothing to import, and no second half kept somewhere else.
 
@@ -100,6 +100,40 @@ change p.city to "London"  # adds a new field
 
 `set` only ever creates a whole new name, so it never has a `.` or `[` after it.
 
+### A name holds a value, not a link
+
+Giving one name to another copies the value. The two are then independent:
+
+```plain
+set prices to [10, 20, 30]
+set backup to prices
+
+change prices[1] to 99
+
+show prices      # [99, 20, 30]
+show backup      # [10, 20, 30]
+```
+
+This is how numbers and text have always behaved — `set b to a` then changing `a` never altered `b`. Lists and records work the same way, so nothing anywhere is ever shared by accident.
+
+The same is true when a value goes into an action, which is what makes an action's seal complete:
+
+```plain
+set data to [1, 2, 3]
+
+make wreck(xs)
+  change xs[1] to 999
+  give 0
+end
+
+show wreck(data)
+show data        # [1, 2, 3] — untouched
+```
+
+An action can read what you pass in and give something back. It can never reach out and alter anything.
+
+If you want two names to match again later, say so — `change backup to prices` takes a fresh copy at that moment.
+
 ## 4. `show` — displaying something
 
 ```plain
@@ -143,8 +177,8 @@ set doubled to count(prices) * 2          # in arithmetic
 Actions can go inside other actions. Read them from the inside out:
 
 ```plain
-show first(sort(prices))
-# sort(prices) gives an ordered list
+show first(sort_up(prices))
+# sort_up(prices) gives an ordered list
 # first(...) then takes its first item
 ```
 
@@ -315,6 +349,8 @@ repeat 3 times
 end
 ```
 
+The count must be a whole number. `repeat 2.7 times` is an error rather than a silent guess, and the message says to use `round(2.7)` if that's what you meant.
+
 ### `while` — until a test stops being true
 
 ```plain
@@ -390,6 +426,8 @@ end
 show factorial(6)      # 720
 ```
 
+**Actions are made at the top level only**, never inside an `if`, a loop, or another action. Since actions can call each other freely, nothing is lost by keeping them all in one place — and it means every action in a program is visible without hunting through blocks.
+
 Several inputs are separated by commas, and an action with no inputs still needs its brackets:
 
 ```plain
@@ -428,7 +466,7 @@ show count(xs)         # 3
 change xs[2] to "Z"    # xs is now ["a", "Z", "c"]
 ```
 
-Asking for a position that doesn't exist tells you how many there are.
+Asking for a position that doesn't exist tells you how many there are. A position must also be a whole number — `xs[2.9]` is an error, not item 2, because a fractional position is nearly always a calculation that needs rounding.
 
 A list may hold anything, including other lists and records:
 
@@ -471,7 +509,20 @@ set config to {owner: {name: "Ada", city: "London"}}
 show config.owner.city      # London
 ```
 
-Setting a field that doesn't exist yet adds it.
+**A record's fields are fixed when you create it.** `change` can alter a field but never invent one:
+
+```plain
+set person to {name: "Ada"}
+change person.age to 36
+```
+> Line 2: This record has no field called `age`, so there's nothing to change. It has: name. A record's fields are fixed when you create it.
+
+So a misspelling is caught rather than quietly making a second field alongside the real one. Declare everything the record will hold when you create it, using `nothing` for anything not known yet:
+
+```plain
+set person to {name: "Ada", age: nothing}
+change person.age to 36
+```
 
 ---
 
@@ -505,6 +556,31 @@ show xs                       # [3, 1, 2] — untouched
 change xs to add(xs, 4)       # to keep the result, change the name
 show xs                       # [3, 1, 2, 4]
 ```
+
+### `add` and `+` are not the same
+
+`add` puts in **exactly one item**, whatever that item is. `+` **merges two lists**:
+
+```plain
+set xs to [1, 2]
+
+show add(xs, 3)         # [1, 2, 3]
+show xs + [3]           # [1, 2, 3]     — same
+
+show add(xs, [3, 4])    # [1, 2, [3, 4]]  one new item, which is a list
+show xs + [3, 4]        # [1, 2, 3, 4]    four items
+```
+
+Counting makes the difference plain:
+
+```plain
+set names to ["Ada"]
+
+show count(add(names, ["Alan", "Grace"]))   # 2
+show count(names + ["Alan", "Grace"])       # 3
+```
+
+If you're reaching for `add` with square brackets in the second slot, you almost certainly want `+`. Note that `join` is a third thing again — it turns one list into text.
 
 Sorting records needs the field name in quotes:
 
@@ -667,17 +743,23 @@ Being honest about the edges, so nothing surprises you:
 
 ### Settled since v0.1
 
-All four rough edges from the first version are now closed:
+Every rough edge found so far is now closed:
 
-1. **Names vanishing at `end`** — kept, because block scoping is correct and more expressive, but the error now names the block and says what to do instead.
-2. **Mutation inconsistency** — settled. Nothing is ever changed in place. `add` and `remove` return new lists, matching `sort_up`, so `change xs to add(xs, 4)` is how you keep a result.
-3. **Suggestions favouring built-ins** — fixed. Names you defined yourself are offered first.
+1. **Names vanishing at `end`** — kept, because block scoping is correct, but the error names the block and says what to do instead.
+2. **Mutation** — settled completely. Nothing is changed in place, and every binding takes a copy, so no two names ever share a list or record.
+3. **Suggestions favouring built-ins** — fixed. Your own names are offered first.
 4. **Asymmetric rounding** — fixed. `round(2.5)` is 3 and `round(-2.5)` is -3.
+5. **Runaway recursion** — an action may call itself 300 times, then stops with a message naming it. Nothing internal can leak, even on a device with less room than usual.
+6. **Silent flooring** — `repeat`, list positions and `random` all require whole numbers.
+7. **Fields appearing from a typo** — `change` can no longer invent a field.
+8. **Actions inside actions** — no longer allowed; every action lives at the top level.
 
 ### Open questions
 
 - **Checking earlier.** Quoted field names are checked when the line runs. A pass over the whole program before running would catch them sooner, along with unknown names and wrong argument counts. Planned for after the kernel.
 - **Text formatting.** The shape of it isn't decided yet — likely a small group of actions rather than one.
+- **Effects and the kernel.** `read`, `write` and `get` are planned to work at the top level of a program only, never inside an action, so that every action stays pure. That keeps a library written in Plain runnable in a browser as well as on a computer.
+- **Copying cost.** Every binding copies, which is O(n) for a large list. Copy-on-write would remove the cost without changing anything observable, if it ever matters.
 
 ## 19. A complete program
 

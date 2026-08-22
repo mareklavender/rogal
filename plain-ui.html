@@ -162,9 +162,9 @@
 <div class="wrap">
 
   <header class="masthead">
-    <p class="eyebrow">A language proposal · v__VERSION__ · runs entirely in this page</p>
+    <p class="eyebrow">Version __VERSION__ · runs entirely in this page</p>
     <h1 class="wordmark">Plain</h1>
-    <p class="standfirst">Twenty-nine words, one way to write each thing, and errors that tell you <em>what to do next</em> instead of what went wrong internally.</p>
+    <p class="standfirst">A small language for getting things done. Twenty-nine words, one way to write each thing, and errors that tell you <em>what to do next</em> instead of what went wrong internally.</p>
   </header>
 
   <div class="exercises" id="exercises"></div>
@@ -233,7 +233,7 @@
       <div class="ref-block">
         <h3>Built in, always available</h3>
         <div class="ref-row"><code>count has</code><span>How many; whether something is in there.</span></div>
-        <div class="ref-row"><code>add remove</code><span>Give back a new list with an item added or taken out.</span></div>
+        <div class="ref-row"><code>add remove</code><span>A new list with one item added or taken out. For two lists use <code>a + b</code>.</span></div>
         <div class="ref-row"><code>first last reverse</code><span>Reach into a list, or turn it round.</span></div>
         <div class="ref-row"><code>sum</code><span>Add up a list of numbers.</span></div>
         <div class="ref-row"><code>sort_up sort_down</code><span>In order. Add a field name to sort records: <code>sort_up(people, "born")</code></span></div>
@@ -243,7 +243,7 @@
         <div class="ref-row"><code>text number keys</code><span>Convert between kinds; list a record's fields.</span></div>
       </div>
     </div>
-    <p class="footnote">Five decisions do most of the work: <strong>blocks end with <code>end</code></strong>, so indentation can never break a program; <strong>comparisons are words</strong>, so <code>=</code> and <code>==</code> can't be confused; <strong><code>set</code> creates and <code>change</code> alters</strong>, so a typo can never quietly make a second variable; <strong>actions see only what you pass in</strong>, so nothing changes at a distance; and <strong>lists count from 1</strong>, matching how people already count.</p>
+    <p class="footnote">Five decisions do most of the work: <strong>blocks end with <code>end</code></strong>, so indentation can never break a program; <strong>comparisons are words</strong>, so <code>=</code> and <code>==</code> can't be confused; <strong><code>set</code> creates and <code>change</code> alters</strong>, so a typo can never quietly make a second variable; <strong>a name holds a value, never a link to someone else's</strong>, so nothing changes at a distance; and <strong>lists count from 1</strong>, matching how people already count.</p>
   </section>
 </div>
 
@@ -329,6 +329,26 @@ show "Earliest first:"
 for each person in sort_up(people, "born")
   show "  " + person.name
 end`},
+
+  { name:"copies", code:
+`# A name holds a value, not a link to someone else's.
+
+set prices to [10, 20, 30]
+set backup to prices
+
+change prices[1] to 99
+
+show "Now:   ", prices
+show "Backup:", backup
+
+# Actions can't reach out and alter what you pass in.
+make wreck(xs)
+  change xs[1] to 0
+  give count(xs)
+end
+
+show "Wreck says:", wreck(prices)
+show "Still:     ", prices`},
 
   { name:"a mistake", broken:true, code:
 `set total to 0

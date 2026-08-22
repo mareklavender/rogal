@@ -1,8 +1,10 @@
 # Plain
 
-A small programming language for people learning to program, where the error messages are the point.
+A small programming language for getting things done, where the error messages are the point.
 
 29 words. One way to write each thing. Blocks closed with `end`, so indentation can never break a program. Comparisons written in words, so `=` and `==` can't be confused. And when something goes wrong, the message names the line, underlines the word, explains the cause in a sentence, and where possible offers the fix as a button.
+
+Being easy to pick up is a property of the design, not the purpose. The aim is a language small enough to hold in your head and solid enough to write real scripts in.
 
 ```plain
 set prices to [12.4, 8.9, 31.2]
@@ -21,7 +23,7 @@ Average: 17.5
 
 Runs entirely in a browser. Nothing to install.
 
-**Status:** working prototype, v0.2.0. Name is provisional.
+**Status:** working prototype, v0.3.0. **The name is a placeholder** — it hasn't been decided, and the repo will be renamed when it is.
 
 ---
 
@@ -32,7 +34,7 @@ Runs entirely in a browser. Nothing to install.
 | `plain-core.js` | The language — tokeniser, parser, interpreter. Edit this. |
 | `plain-ui.html` | The playground page. Edit this. |
 | `build.js` | Fuses the two into `plain.html`. |
-| `test.js` | 66 checks over the language. |
+| `test.js` | 88 checks over the language. |
 | `plain.html` | **Generated.** The single file to share. Never edit by hand. |
 | `plain-reference.md` | The complete language reference. |
 
@@ -68,17 +70,20 @@ Drag `plain.html` onto [Netlify Drop](https://app.netlify.com/drop) for a public
 The reasoning behind these is in `plain-reference.md`.
 
 - **`set` creates, `change` alters.** A typo can't quietly make a second variable.
-- **Actions see only what you pass in.** No action changes anything at a distance, and every action's first line lists everything it uses.
+- **A name holds a value, not a link to someone else's.** Every binding copies, so no two names ever share a list or record.
+- **Actions see only what you pass in** and can't alter it. An action's first line lists everything it touches, and every action lives at the top level.
 - **Nothing is ever changed in place.** `add`, `remove` and `sort_up` all hand back a new value.
 - **An `if` accepts only `true` or `false`.** Nothing is secretly truthy.
+- **Nothing is silently rounded.** Fractional counts and positions are errors, not guesses.
 - **Lists count from 1**, matching how people already count.
-- **Blocks keep their own new names**, and the error says so by name when one goes out of scope.
 
 ## What's next
 
 1. Make the evaluator async internally — invisible from the outside, and the gate on everything below.
-2. A kernel of three primitives: `read`, `write`, `get`. The first time a program touches the world.
+2. A kernel of three primitives: `read`, `write`, `get`, usable **at the top level of a program only**, never inside an action. That keeps every action pure, which in turn keeps every library runnable in a browser as well as on a computer.
 3. Standalone binaries, via Bun.
 4. Libraries, written in Plain itself rather than wrapping JavaScript packages.
+
+The language is identical everywhere it runs. Only the kernel differs, and anything a browser can't do explains itself rather than failing quietly.
 
 Known gaps are listed in section 18 of the reference: no files or network, no text formatting, no error handling, no modules, no input.
