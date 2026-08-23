@@ -211,9 +211,8 @@ page = f"""<!DOCTYPE html>
   <hr class="tp-rule">
   <p class="tp-stand">Twenty-nine words, one way to write each thing, and a mistake tells you
   <em>what to do about it</em> instead of what went wrong inside the machine.</p>
-  <p class="tp-stand" style="font-size:10.5pt;color:#4a4459">This document is complete. Every word
-  the language has, and every action built into it, is described here — there is no second half kept
-  somewhere else.</p>
+  <p class="tp-stand" style="font-size:10.5pt;color:#4a4459">Everything the language has is in here:
+  all 29 words and all 24 built-in actions, with a list of the lot at the end.</p>
   <div class="tp-meta">
     <b>29</b> words &nbsp;·&nbsp; <b>24</b> built-in actions &nbsp;·&nbsp; browser or terminal<br>
     Generated {date.today().strftime('%-d %B %Y')}

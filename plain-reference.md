@@ -2,7 +2,7 @@
 
 **Version 0.5** · Complete. Every word the language has is in this document.
 
-Plain has 29 words and 23 built-in actions. That's the whole language. There is nothing to install, nothing to import, and no second half kept somewhere else.
+Plain has 29 words and 24 built-in actions. That's the whole language — nothing to install and nothing to import.
 
 ---
 
