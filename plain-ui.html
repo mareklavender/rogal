@@ -197,7 +197,7 @@
 
   <section class="reference">
     <h2 class="ref-title">The whole language</h2>
-    <p class="ref-sub">Not a summary — 29 words and 24 built-in actions is everything Plain has. Nothing to install, nothing to import.</p>
+    <p class="ref-sub">Not a summary — 29 words and 30 built-in actions is everything Plain has. Nothing to install, nothing to import.</p>
     <div class="ref-grid">
       <div class="ref-block">
         <h3>Instructions</h3>
@@ -292,6 +292,10 @@ const browserHost = {
     link.click();
     setTimeout(() => { URL.revokeObjectURL(link.href); link.remove(); }, 1000);
     return text.length;
+  },
+
+  async now() {
+    return momentRecord(makeRecord);
   },
 
   async get(address, node) {
@@ -464,6 +468,27 @@ end
 
 show counts
 show "the appears", counts["the"], "times"`},
+
+  { name:"a tidy table", code:
+`set items to [
+  {name: "apple", price: 1.5, sold: 120},
+  {name: "watermelon", price: 12, sold: 8},
+  {name: "fig", price: 0.75, sold: 340}
+]
+
+show align_left("Item", 14) + align_right("Price", 8) + align_right("Sold", 7)
+show replace(align_left("", 29), " ", "-")
+
+for each item in sort_down(items, "sold")
+  show align_left(item.name, 14) + align_right(decimals(item.price, 2), 8) + align_right(item.sold, 7)
+end
+
+set total to 0
+for each item in items
+  change total to total + item.price * item.sold
+end
+show ""
+show align_left("Takings", 14) + align_right(decimals(total, 2), 8)`},
 
   { name:"a mistake", broken:true, code:
 `set total to 0

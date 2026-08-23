@@ -1,4 +1,4 @@
-const PLAIN_VERSION = "0.5.0";
+const PLAIN_VERSION = "0.6.0";
 
 /* ============================================================
    Plain — core language
@@ -1208,6 +1208,15 @@ function expectList(v, name, node) {
   if (!Array.isArray(v)) throw new PlainError(`"${name}" needs a list, but got ${describeValue(v)}.`, node.tok);
   return v;
 }
+function padTo(text, width, name, node, onLeft) {
+  if (typeof width !== "number" || Math.floor(width) !== width || width < 0)
+    throw new PlainError(`"${name}" needs a whole width of 0 or more, but got ${describeValue(width)}.`, node.tok,
+      { hint: `For example: ${name}("apple", 12)` });
+  if (text.length >= width) return text;           // never lose what you were given
+  const spaces = " ".repeat(width - text.length);
+  return onLeft ? spaces + text : text + spaces;
+}
+
 function expectText(v, name, node) {
   if (typeof v !== "string") throw new PlainError(`"${name}" needs text, but got ${describeValue(v)}.`, node.tok);
   return v;
@@ -1383,6 +1392,62 @@ function installBuiltins(scope, interp) {
     return v;
   });
 
+  def("slice", ["thing", "from", "to"], (a, n) => {
+    need(a, 3, "slice", n);
+    const [thing, from, to] = a;
+    if (!Array.isArray(thing) && typeof thing !== "string")
+      throw new PlainError(`"slice" works on a list or text, but got ${describeValue(thing)}.`, n.tok);
+    for (const x of [from, to]) {
+      if (typeof x !== "number")
+        throw new PlainError(`"slice" needs whole numbers for the two positions, but got ${describeValue(x)}.`, n.tok);
+      if (Math.floor(x) !== x)
+        throw new PlainError(`"slice" needs whole positions, but got ${fmtNumber(x)}.`, n.tok,
+          { hint: `Positions count 1, 2, 3. For example: slice("hello", 2, 4) gives "ell".` });
+    }
+    if (from < 1)
+      throw new PlainError(`"slice" starts counting at 1, but was asked to start at ${fmtNumber(from)}.`, n.tok);
+    const last = Math.min(to, thing.length);
+    if (from > thing.length || last < from) return Array.isArray(thing) ? [] : "";
+    return thing.slice(from - 1, last);
+  });
+
+  def("replace", ["text", "old", "new"], (a, n) => {
+    need(a, 3, "replace", n);
+    for (const x of a) expectText(x, "replace", n);
+    if (a[1] === "")
+      throw new PlainError(`"replace" needs something to look for, but was given empty text.`, n.tok);
+    return a[0].split(a[1]).join(a[2]);
+  });
+
+  def("find", ["text", "part"], (a, n) => {
+    need(a, 2, "find", n);
+    expectText(a[0], "find", n); expectText(a[1], "find", n);
+    if (a[1] === "")
+      throw new PlainError(`"find" needs something to look for, but was given empty text.`, n.tok);
+    const at = a[0].indexOf(a[1]);
+    return at === -1 ? null : at + 1;
+  });
+
+  def("align_left", ["value", "width"], (a, n) => {
+    need(a, 2, "align_left", n);
+    return padTo(toDisplay(a[0]), a[1], "align_left", n, false);
+  });
+
+  def("align_right", ["value", "width"], (a, n) => {
+    need(a, 2, "align_right", n);
+    return padTo(toDisplay(a[0]), a[1], "align_right", n, true);
+  });
+
+  def("decimals", ["number", "places"], (a, n) => {
+    need(a, 2, "decimals", n);
+    if (typeof a[0] !== "number")
+      throw new PlainError(`"decimals" needs a number, but got ${describeValue(a[0])}.`, n.tok);
+    if (typeof a[1] !== "number" || Math.floor(a[1]) !== a[1] || a[1] < 0 || a[1] > 15)
+      throw new PlainError(`"decimals" needs a whole number of places from 0 to 15, but got ${describeValue(a[1])}.`, n.tok,
+        { hint: `For example: decimals(17.1, 2) gives "17.10".` });
+    return roundTo(a[0], a[1]).toFixed(a[1]);
+  });
+
   def("numbers", ["from", "to"], (a, n) => {
     need(a, 2, "numbers", n);
     for (const x of a) {
@@ -1406,6 +1471,23 @@ function installBuiltins(scope, interp) {
     need(a, 1, "keys", n);
     if (!isRecord(a[0])) throw new PlainError(`"keys" needs a record, but got ${describeValue(a[0])}.`, n.tok);
     return Object.keys(a[0].fields);
+  });
+}
+
+function momentRecord(makeRecord) {
+  const d = new Date();
+  const two = n => String(n).padStart(2, "0");
+  const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  return makeRecord({
+    date:    `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`,
+    time:    `${two(d.getHours())}:${two(d.getMinutes())}:${two(d.getSeconds())}`,
+    year:    d.getFullYear(),
+    month:   d.getMonth() + 1,
+    day:     d.getDate(),
+    hour:    d.getHours(),
+    minute:  d.getMinutes(),
+    second:  d.getSeconds(),
+    weekday: days[d.getDay()],
   });
 }
 
@@ -1448,6 +1530,11 @@ function installKernel(scope, host) {
     return answer;
   });
 
+  def("now", [], async (a, n) => {
+    need(a, 0, "now", n);
+    return await host.now(n);
+  });
+
   def("get", ["address"], async (a, n) => {
     need(a, 1, "get", n);
     expectText(a[0], "get", n);
@@ -1459,7 +1546,7 @@ function installKernel(scope, host) {
 
 // Used when there is no kernel at all, so the message explains rather than puzzles.
 function installAbsentKernel(scope, why) {
-  for (const name of ["read", "write", "get", "ask"]) {
+  for (const name of ["read", "write", "get", "ask", "now"]) {
     scope.define(name, effect(name, ["..."], (a, n) => {
       throw new PlainError(`"${name}" needs somewhere to reach, and there isn't one here.`, n.tok, { hint: why });
     }));
@@ -1496,4 +1583,4 @@ async function run(source, host) {
   }
 }
 
-if (typeof module !== "undefined") module.exports = { run, PLAIN_VERSION };
+if (typeof module !== "undefined") module.exports = { run, PLAIN_VERSION, makeRecord, momentRecord };

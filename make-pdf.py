@@ -12,7 +12,7 @@ KEYWORDS = ["set","change","to","show","if","else","end","for","each","in","repe
             "while","make","give","is","not","and","or","true","false","nothing",
             "more","less","than","at","most","least","stop"]
 BUILTINS = ["count","add","remove","first","last","reverse","has","sum","sort_up","sort_down",
-            "join","split","upper","lower","trim","round","random","text","number","keys","numbers","reverse","sort_up","sort_down","read","write","get","ask"]
+            "join","split","upper","lower","trim","round","random","text","number","keys","numbers","reverse","sort_up","sort_down","read","write","get","ask","now","slice","replace","find","align_left","align_right","decimals"]
 
 version = "0.2.0"
 try:
@@ -212,9 +212,9 @@ page = f"""<!DOCTYPE html>
   <p class="tp-stand">Twenty-nine words, one way to write each thing, and a mistake tells you
   <em>what to do about it</em> instead of what went wrong inside the machine.</p>
   <p class="tp-stand" style="font-size:10.5pt;color:#4a4459">Everything the language has is in here:
-  all 29 words and all 24 built-in actions, with a list of the lot at the end.</p>
+  all 29 words and all 30 built-in actions, with a list of the lot at the end.</p>
   <div class="tp-meta">
-    <b>29</b> words &nbsp;·&nbsp; <b>24</b> built-in actions &nbsp;·&nbsp; browser or terminal<br>
+    <b>29</b> words &nbsp;·&nbsp; <b>30</b> built-in actions &nbsp;·&nbsp; browser or terminal<br>
     Generated {date.today().strftime('%-d %B %Y')}
   </div>
 </div>

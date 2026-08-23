@@ -1,0 +1,126 @@
+# dates.plain — working with dates, written in Plain itself.
+#
+# Dates here are text in the form "2026-08-22". Written that way they
+# already sort and compare correctly, so this file only adds the parts
+# that need arithmetic: counting days, moving forwards, and naming the day.
+#
+# Nothing in this file reaches outside the program. Paste it above your
+# own code and call the actions. To find today, use now() in your program
+# and pass the date in.
+
+make is_leap_year(year)
+  if year % 400 is 0
+    give true
+  end
+  if year % 100 is 0
+    give false
+  end
+  give year % 4 is 0
+end
+
+make days_in_month(year, month)
+  set lengths to [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+  if month is 2
+    if is_leap_year(year)
+      give 29
+    end
+    give 28
+  end
+  give lengths[month]
+end
+
+make date_parts(date)
+  set bits to split(date, "-")
+  if count(bits) is not 3
+    give nothing
+  end
+  give {year: number(bits[1]), month: number(bits[2]), day: number(bits[3])}
+end
+
+make is_date(date)
+  set parts to date_parts(date)
+  if parts is nothing
+    give false
+  end
+  if parts.month is less than 1 or parts.month is more than 12
+    give false
+  end
+  if parts.day is less than 1
+    give false
+  end
+  give parts.day is at most days_in_month(parts.year, parts.month)
+end
+
+# Days since the start of year 1, so two dates can be subtracted.
+make day_number(date)
+  set parts to date_parts(date)
+  set years to parts.year - 1
+  set total to years * 365 + numbers_below(years, 4) - numbers_below(years, 100) + numbers_below(years, 400)
+
+  set month to 1
+  while month is less than parts.month
+    change total to total + days_in_month(parts.year, month)
+    change month to month + 1
+  end
+
+  give total + parts.day
+end
+
+make numbers_below(n, step)
+  give round((n - (n % step)) / step)
+end
+
+make days_between(first, second)
+  give day_number(second) - day_number(first)
+end
+
+make add_days(date, howMany)
+  set parts to date_parts(date)
+  set year to parts.year
+  set month to parts.month
+  set day to parts.day + howMany
+
+  while day is more than days_in_month(year, month)
+    change day to day - days_in_month(year, month)
+    change month to month + 1
+    if month is more than 12
+      change month to 1
+      change year to year + 1
+    end
+  end
+
+  while day is less than 1
+    change month to month - 1
+    if month is less than 1
+      change month to 12
+      change year to year - 1
+    end
+    change day to day + days_in_month(year, month)
+  end
+
+  give text(year) + "-" + two_digits(month) + "-" + two_digits(day)
+end
+
+make two_digits(n)
+  if n is less than 10
+    give "0" + n
+  end
+  give text(n)
+end
+
+make weekday(date)
+  set names to ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+  give names[(day_number(date) - 1) % 7 + 1]
+end
+
+make month_name(date)
+  set names to ["January", "February", "March", "April", "May", "June",
+                "July", "August", "September", "October", "November", "December"]
+  give names[date_parts(date).month]
+end
+
+# "2026-08-22" becomes "22 August 2026"
+make long_date(date)
+  set parts to date_parts(date)
+  give parts.day + " " + month_name(date) + " " + parts.year
+end

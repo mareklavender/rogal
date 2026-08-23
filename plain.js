@@ -4,7 +4,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { run, PLAIN_VERSION } = require("./plain-core.js");
+const { run, PLAIN_VERSION, makeRecord, momentRecord } = require("./plain-core.js");
 
 const file = process.argv[2];
 
@@ -36,6 +36,10 @@ const host = {
     try { fs.writeFileSync(full, text); }
     catch (e) { throw plainly(`I couldn't write "${name}".`, node, e.code === "EACCES" ? `There's no permission to write there.` : e.message); }
     return text.length;
+  },
+
+  async now() {
+    return momentRecord(makeRecord);
   },
 
   async get(address, node) {

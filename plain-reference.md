@@ -1,8 +1,8 @@
 # Plain — Language Reference
 
-**Version 0.5** · Complete. Every word the language has is in this document.
+**Version 0.6** · Complete. Every word the language has is in this document.
 
-Plain has 29 words and 24 built-in actions. That's the whole language — nothing to install and nothing to import.
+Plain has 29 words and 30 built-in actions. That's the whole language — nothing to install and nothing to import.
 
 ---
 
@@ -113,7 +113,7 @@ set count to 3
 
 Names start with a letter or `_` and may contain letters, digits and `_`. They are case-sensitive.
 
-The 24 built-in action names are taken, so `set count to 0` won't work — `count` is already something. The error says which name clashed. Section 14 has the full list; `total`, `tally` and `how_many` are all free.
+The 30 built-in action names are taken, so `set count to 0` won't work — `count` is already something. The error says which name clashed. Section 14 has the full list; `total`, `tally` and `how_many` are all free.
 
 `change` also reaches inside lists and records:
 
@@ -577,7 +577,7 @@ change person.age to 36
 
 ---
 
-## 14. The 24 built-in actions
+## 14. The 30 built-in actions
 
 Always available. Nothing to import. **None of them ever changes what you give them** — they hand back a new value, so the original is untouched.
 
@@ -653,9 +653,48 @@ Misspelling the field is an error naming the fields that exist, with a one-tap c
 | Action | Needs | Gives back |
 |---|---|---|
 | `split(text, separator)` | two pieces of text | a list |
+| `slice(thing, from, to)` | text or a list, and two positions | the part between them, both ends included |
+| `replace(text, old, new)` | three pieces of text | the text with every `old` swapped for `new` |
+| `find(text, part)` | two pieces of text | where `part` starts, or `nothing` |
 | `upper(text)` | text | text in capitals |
 | `lower(text)` | text | text in lower case |
 | `trim(text)` | text | text without leading or trailing spaces |
+
+```plain
+show slice("programming", 1, 7)      # program
+show slice([1,2,3,4,5], 2, 4)        # [2, 3, 4]
+show replace("the cat sat", "cat", "dog")
+show find("hello world", "world")    # 7
+```
+
+`slice` counts both ends in, so `slice(word, 2, 4)` gives you letters two, three and four. Ask for more than there is and it stops at the end, which makes truncating easy: `slice(long, 1, 20)` never fails.
+
+`find` gives `nothing` when the text isn't there, so check with `has` first if you're not sure.
+
+### Laying things out
+
+| Action | Needs | Gives back |
+|---|---|---|
+| `align_left(value, width)` | anything, and a width | it as text, padded with spaces on the right |
+| `align_right(value, width)` | anything, and a width | it as text, padded with spaces on the left |
+| `decimals(number, places)` | a number and how many places | it as text, with exactly that many decimals |
+
+`round` gives a number, and numbers drop trailing zeros — so `round(17.1, 2)` shows `17.1`. When you want `17.10`, you want text:
+
+```plain
+set items to [{name: "apple", price: 1.5}, {name: "watermelon", price: 12}]
+
+for each item in items
+  show align_left(item.name, 14) + align_right(decimals(item.price, 2), 8)
+end
+```
+
+```
+apple             1.50
+watermelon       12.00
+```
+
+Neither aligning action ever truncates. Give it something wider than the width and you get it back whole.
 
 ### Numbers
 
@@ -691,6 +730,7 @@ Three actions reach beyond the program itself:
 | `write(name, text)` | a file name and some text | how many letters were written |
 | `get(address)` | a web address | what the page returned, as text |
 | `ask(question)` | something to ask | whatever the person types, as text |
+| `now()` | nothing | a record describing this moment |
 
 ```plain
 set raw to read("stock.csv")
@@ -711,6 +751,19 @@ show raw
 ```
 
 So the moment a program touches the outside world is visible on its own line, not buried in a calculation.
+
+`now()` gives a record rather than a lump of text to pick apart:
+
+```plain
+set moment to now()
+
+show moment.date        # 2026-08-22
+show moment.time        # 19:03:08
+show moment.weekday     # Saturday
+show moment.year, moment.month, moment.day
+```
+
+Dates written as `2026-08-22` sort and compare correctly on their own, because the biggest part comes first — so `sort_up` on a list of them does the right thing with no extra work. For counting days, moving forwards and naming months, `dates.plain` in the repository is a small library written in Plain that you can paste above your own code.
 
 `ask` always gives back **text**, even when the person types a number — there's no way to know which they meant. So do sums with `number(...)`:
 
@@ -852,7 +905,7 @@ The edges, so nothing catches you out:
 - **No text formatting.** No padding, alignment or fixed decimal places, so a table of numbers comes out ragged.
 - **No error handling.** No `try`/`catch`. An error stops the program.
 - **No modules.** One program is one file; programs can't yet use each other, so there are no libraries.
-- **No dates.** No way to get today's date or work out the days between two of them.
+- **No dates built in.** `now()` tells you the moment, and `dates.plain` handles the arithmetic, but neither is part of the language proper.
 - **No input.** No way to ask the person a question while running.
 - **No classes.** Records hold values, not actions on those values. This may stay that way deliberately.
 - **No async, threads or timing.** Nothing runs in the background.
@@ -978,8 +1031,12 @@ Every word and every built-in action, with where to read more.
 | Action | What it does | Section |
 |---|---|---|
 | `add(list, item)` | A new list with one more item on the end | 14 |
+| `align_left(value, width)` | Padded with spaces on the right | 14 |
+| `align_right(value, width)` | Padded with spaces on the left | 14 |
 | `ask(question)` | Ask the person something. Always gives text | 15 |
 | `count(thing)` | How many items, letters or entries | 14 |
+| `decimals(number, places)` | A number as text, with exactly that many decimals | 14 |
+| `find(text, part)` | Where something starts, or `nothing` | 14 |
 | `first(list)` | The first item | 14 |
 | `get(address)` | Fetch a web address, as text | 15 |
 | `has(thing, item)` | Whether it's in there. True or false | 14 |
@@ -987,14 +1044,17 @@ Every word and every built-in action, with where to read more.
 | `keys(record)` | A list of a record's names | 14 |
 | `last(list)` | The last item | 14 |
 | `lower(text)` | Text in lower case | 14 |
+| `now()` | A record describing this moment | 15 |
 | `number(text)` | Text into a number. Fails if it isn't one | 14 |
 | `numbers(from, to)` | A list counting from one to the other | 14 |
 | `random(low, high)` | A whole number between the two, either end possible | 14 |
 | `read(name)` | Read a text file | 15 |
 | `remove(list, position)` | A new list without that item | 14 |
+| `replace(text, old, new)` | Every `old` swapped for `new` | 14 |
 | `reverse(list)` | It, back to front. Works on text too | 14 |
 | `round(number)` | Nearest whole number | 14 |
 | `round(number, places)` | Rounded to that many decimals | 14 |
+| `slice(thing, from, to)` | The part between two positions, both ends in | 14 |
 | `sort_down(list)` | Largest or Z–A first | 14 |
 | `sort_down(list, "field")` | Records ordered by a field, largest first | 14 |
 | `sort_up(list)` | Smallest or A–Z first | 14 |
@@ -1006,4 +1066,4 @@ Every word and every built-in action, with where to read more.
 | `upper(text)` | Text in capitals | 14 |
 | `write(name, text)` | Write a text file | 15 |
 
-The four in section 15 reach outside the program. Each needs a line of its own and none can be used inside an action.
+The five in section 15 reach outside the program. Each needs a line of its own and none can be used inside an action.

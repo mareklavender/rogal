@@ -222,6 +222,31 @@ fails("round brackets for a list", `set xs to (1, 2, 3)`, "square brackets");
 fails("join given a nested list", `show join([[1,2]], "-")`, "one other list");
 shows("grouping still works", `show (2 + 3) * 4`, ["20"]);
 
+/* ---------- text handling ---------- */
+
+shows("slice text", `show slice("programming", 1, 7)`, ["program"]);
+shows("slice a list", `show slice([1,2,3,4,5], 2, 4)`, ["[2, 3, 4]"]);
+shows("slice past the end stops at the end", `show slice("short", 1, 100)`, ["short"]);
+shows("slice starting past the end is empty", `show slice("ab", 5, 9)`, [""]);
+fails("slice needs whole positions", `show slice("abc", 1, 2.5)`, "whole positions");
+fails("slice starts at 1", `show slice("abc", 0, 2)`, "counting at 1");
+
+shows("replace", `show replace("the cat sat", "cat", "dog")`, ["the dog sat"]);
+shows("replace every one", `show replace("a-b-c", "-", "+")`, ["a+b+c"]);
+fails("replace needs something to look for", `show replace("abc", "", "x")`, "something to look for");
+
+shows("find gives a position", `show find("hello world", "world")`, ["7"]);
+shows("find gives nothing when absent", `show find("hello", "zzz")`, ["nothing"]);
+
+shows("align left", `show "[" + align_left("apple", 8) + "]"`, ["[apple   ]"]);
+shows("align right", `show "[" + align_right(1.5, 6) + "]"`, ["[   1.5]"]);
+shows("align never truncates", `show align_left("elephant", 3)`, ["elephant"]);
+
+shows("decimals keeps trailing zeros", `show decimals(17.1, 2)`, ["17.10"]);
+shows("decimals rounds", `show decimals(3.14159, 3)`, ["3.142"]);
+shows("decimals to none", `show decimals(2.7, 0)`, ["3"]);
+fails("decimals needs a number", `show decimals("x", 2)`, "needs a number");
+
 /* ---------- errors that must stay helpful ---------- */
 
 fails("unknown name suggests yours first", `set total to 0\nshow totl`, "total");
