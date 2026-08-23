@@ -165,7 +165,7 @@
   <header class="masthead">
     <p class="eyebrow">Version __VERSION__ · runs entirely in this page</p>
     <h1 class="wordmark">Plain</h1>
-    <p class="standfirst">A small language for getting things done. Twenty-nine words, one way to write each thing, and errors that tell you <em>what to do next</em> instead of what went wrong internally.</p>
+    <p class="standfirst">A small language that is genuinely easy to write. Twenty-nine words, one way to write each thing, and a mistake tells you <em>what to do about it</em> instead of what went wrong inside the machine.</p>
   </header>
 
   <div class="exercises" id="exercises"></div>
@@ -197,7 +197,7 @@
 
   <section class="reference">
     <h2 class="ref-title">The whole language</h2>
-    <p class="ref-sub">Not a summary — 29 words and 20 built-in actions is everything Plain has. Nothing to install, nothing to import, no hidden second half.</p>
+    <p class="ref-sub">Not a summary — 29 words and 24 built-in actions is everything Plain has. Nothing to install, nothing to import, no hidden second half.</p>
     <div class="ref-grid">
       <div class="ref-block">
         <h3>Instructions</h3>
@@ -439,6 +439,31 @@ end
 # Two rules keep this predictable:
 #   a kernel action needs a line of its own
 #   and can never be used inside an action.`},
+
+  { name:"counting", code:
+`# numbers() gives you a list to count through.
+
+set total to 0
+for each i in numbers(1, 10)
+  change total to total + i
+end
+show "1 to 10 adds up to", total
+
+# A record looked up by name keeps a tally.
+# The dot needs a name you wrote down.
+# Square brackets take one worked out as it runs.
+
+set counts to {}
+for each word in split("the cat the dog the cat", " ")
+  if has(counts, word)
+    change counts[word] to counts[word] + 1
+  else
+    change counts[word] to 1
+  end
+end
+
+show counts
+show "the appears", counts["the"], "times"`},
 
   { name:"a mistake", broken:true, code:
 `set total to 0

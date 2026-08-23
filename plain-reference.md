@@ -1,8 +1,8 @@
 # Plain — Language Reference
 
-**Version 0.4** · Complete. Every word the language has is in this document.
+**Version 0.5** · Complete. Every word the language has is in this document.
 
-Plain has 29 words and 23 built-in actions. That is the whole language. There is nothing to install, nothing to import, and no second half kept somewhere else.
+Plain has 29 words and 23 built-in actions. That's the whole language. There is nothing to install, nothing to import, and no second half kept somewhere else.
 
 ---
 
@@ -46,7 +46,33 @@ Inside text you can use `\n` for a new line, `\"` for a quote mark, and `\\` for
 
 ---
 
-## 3. `set` and `change` — names and values
+## 3. The three kinds of bracket
+
+Each pair does one job. Mixing them up is the most common early mistake, so it's worth a page of its own.
+
+| Brackets | Job | Example |
+|---|---|---|
+| `[ ]` | Make a list, or reach into one | `[1, 2, 3]` and `xs[1]` |
+| `{ }` | Make a record, and look one up by name | `{name: "Ada"}` and `counts["the"]` |
+| `( )` | Group a calculation, and hold an action's inputs | `(2 + 3) * 4` and `double(5)` |
+
+Two traps catch nearly everyone.
+
+**Round brackets don't make a list.** `(1, 2, 3)` is an error, and Plain will offer to rewrite it as `[1, 2, 3]`.
+
+**Square brackets build a new list — they don't mark where one goes.** If you already have a list, hand it over as it is:
+
+```plain
+set a to [1, 2]
+set b to [3]
+
+show join(a + b, "-")      # 1-2-3
+show join([a + b], "-")    # wrong: a list holding one list
+```
+
+`[a + b]` makes a list with a single item in it, and that item is itself a list. `count([a + b])` is 1, while `count(a + b)` is 3.
+
+## 4. `set` and `change` — names and values
 
 `set` creates a name. `change` gives an existing one a new value. They are separate on purpose, so a typo can never quietly create a second variable.
 
@@ -87,6 +113,8 @@ set count to 3
 
 Names start with a letter or `_` and may contain letters, digits and `_`. They are case-sensitive.
 
+The 24 built-in action names are taken, so `set count to 0` won't work — `count` is already something. The error says which name clashed. Section 14 has the full list; `total`, `tally` and `how_many` are all free.
+
 `change` also reaches inside lists and records:
 
 ```plain
@@ -114,9 +142,9 @@ show prices      # [99, 20, 30]
 show backup      # [10, 20, 30]
 ```
 
-This is how numbers and text have always behaved — `set b to a` then changing `a` never altered `b`. Lists and records work the same way, so nothing anywhere is ever shared by accident.
+Numbers and text have always worked this way — `set b to a` then changing `a` never altered `b`. Lists and records work the same way, so nothing gets shared by accident.
 
-The same is true when a value goes into an action, which is what makes an action's seal complete:
+The same is true when a value goes into an action, which is what makes an action properly sealed:
 
 ```plain
 set data to [1, 2, 3]
@@ -130,11 +158,11 @@ show wreck(data)
 show data        # [1, 2, 3] — untouched
 ```
 
-An action can read what you pass in and give something back. It can never reach out and alter anything.
+An action can read what you pass in and hand something back. It can't reach out and change anything.
 
 If you want two names to match again later, say so — `change backup to prices` takes a fresh copy at that moment.
 
-## 4. `show` — displaying something
+## 5. `show` — displaying something
 
 ```plain
 show "Hello"
@@ -156,7 +184,7 @@ How many: 2 Total: 30
 
 ---
 
-## 5. How things combine — the important part
+## 6. How things combine — the important part
 
 This is the rule that makes everything else fit together:
 
@@ -209,7 +237,7 @@ show if true               # if is a statement, not a value
 
 ---
 
-## 6. Arithmetic and joining
+## 7. Arithmetic and joining
 
 ```plain
 show 10 + 5      # 15
@@ -236,7 +264,7 @@ Numbers are shown tidied, so `0.1 + 0.2` displays as `0.3` rather than a long tr
 
 ---
 
-## 7. Comparing
+## 8. Comparing
 
 Comparisons are words, never symbols. Typing `>` or `==` gets you an error telling you the word to use instead.
 
@@ -268,13 +296,13 @@ show "apple" is less than "Banana"    # true
 show sort_up(["banana", "Apple"])     # ["Apple", "banana"]
 ```
 
-Note that ordering ignores capitals but `is` does not — `"Apple" is "apple"` is false. Matching is exact; only ordering is forgiving.
+Ordering ignores capitals, but `is` doesn't — `"Apple" is "apple"` is false. Matching is exact — only ordering is forgiving.
 
 Comparing sizes of anything else is an error, with a message pointing you at `is`.
 
 ---
 
-## 8. Logic and conditions
+## 9. Logic and conditions
 
 ```plain
 and    both must be true
@@ -315,7 +343,7 @@ One `end` closes the whole chain. `else if` may repeat as many times as you like
 
 ---
 
-## 9. Loops
+## 10. Loops
 
 ### `for each` — go through a list
 
@@ -382,7 +410,7 @@ end
 
 ---
 
-## 10. Actions
+## 11. Actions
 
 `make` creates an action. `give` hands a value back.
 
@@ -426,7 +454,7 @@ end
 show factorial(6)      # 720
 ```
 
-**Actions are made at the top level only**, never inside an `if`, a loop, or another action. Since actions can call each other freely, nothing is lost by keeping them all in one place — and it means every action in a program is visible without hunting through blocks.
+**Actions are made at the top level only**, never inside an `if`, a loop, or another action. Actions can call each other freely, so nothing is lost by keeping them together — and you can see every action in a program without hunting through blocks.
 
 Several inputs are separated by commas, and an action with no inputs still needs its brackets:
 
@@ -454,7 +482,7 @@ end
 show apply(double, 7)   # 14
 ```
 
-## 11. Lists in detail
+## 12. Lists in detail
 
 **Items count from 1.** The first item is `xs[1]`, matching how people already count.
 
@@ -466,7 +494,7 @@ show count(xs)         # 3
 change xs[2] to "Z"    # xs is now ["a", "Z", "c"]
 ```
 
-Asking for a position that doesn't exist tells you how many there are. A position must also be a whole number — `xs[2.9]` is an error, not item 2, because a fractional position is nearly always a calculation that needs rounding.
+Asking for a position that doesn't exist tells you how many there are. A position must also be a whole number — `xs[2.9]` is an error, not item 2, because a fraction there is nearly always a sum that needed rounding.
 
 A list may hold anything, including other lists and records:
 
@@ -491,7 +519,7 @@ show "hello"[1]        # h
 
 ---
 
-## 12. Records in detail
+## 13. Records in detail
 
 ```plain
 set person to {name: "Ada", born: 1815}
@@ -517,7 +545,30 @@ change person.age to 36
 ```
 > Line 2: This record has no field called `age`, so there's nothing to change. It has: name. A record's fields are fixed when you create it.
 
-So a misspelling is caught rather than quietly making a second field alongside the real one. Declare everything the record will hold when you create it, using `nothing` for anything not known yet:
+So a misspelling is caught rather than quietly making a second field alongside the real one.
+
+### Looking a record up by name
+
+The dot needs a field you wrote down yourself. When the name is worked out while the program runs — counting words, grouping things, keeping a tally — use square brackets and text instead:
+
+```plain
+set counts to {}
+
+for each word in split("the cat the dog the cat", " ")
+  if has(counts, word)
+    change counts[word] to counts[word] + 1
+  else
+    change counts[word] to 1
+  end
+end
+
+show counts              # {the: 3, cat: 2, dog: 1}
+show counts["the"]       # 3
+```
+
+`change ...["key"] to ...` adds the entry if it isn't there yet. That's the one place a record can grow, and you had to type the quotes to get it, so it can't happen by accident.
+
+Reading a name that isn't there is still an error, so check with `has` first when you're not sure. Declare everything the record will hold when you create it, using `nothing` for anything not known yet:
 
 ```plain
 set person to {name: "Ada", age: nothing}
@@ -526,7 +577,7 @@ change person.age to 36
 
 ---
 
-## 13. The 20 built-in actions
+## 14. The 24 built-in actions
 
 Always available. Nothing to import. **None of them ever changes what you give them** — they hand back a new value, so the original is untouched.
 
@@ -544,7 +595,9 @@ Always available. Nothing to import. **None of them ever changes what you give t
 | `sum(list)` | a list of numbers only | the total |
 | `sort_up(list)` | all numbers, or all text | smallest or A–Z first |
 | `sort_down(list)` | all numbers, or all text | largest or Z–A first |
-| `sort_up(list, "field")` | a list of records | ordered by that field |
+| `sort_up(list, "field")` | a list of records | ordered by that field, smallest first |
+| `sort_down(list, "field")` | a list of records | ordered by that field, largest first |
+| `numbers(from, to)` | two whole numbers | a list counting from one to the other |
 | `join(list, separator)` | a list and some text | one piece of text |
 
 ```plain
@@ -593,7 +646,7 @@ show sort_up(people, "born")     # Ada first
 show sort_down(people, "born")   # Grace first
 ```
 
-Misspelling the field is an error naming the fields that exist, with a one-tap correction. It is checked when the line runs, not before.
+Misspelling the field is an error naming the fields that exist, with a one-tap correction. It's checked when the line runs, not before.
 
 ### Text
 
@@ -628,7 +681,7 @@ Rounding gives a number, and numbers drop trailing zeros, so `round(17.1, 2)` sh
 | `number(text)` | text that reads as a number | the number |
 | `keys(record)` | a record | a list of its field names |
 
-## 14. Reaching outside the program
+## 15. Reaching outside the program
 
 Three actions reach beyond the program itself:
 
@@ -637,6 +690,7 @@ Three actions reach beyond the program itself:
 | `read(name)` | the name of a file | its contents as text |
 | `write(name, text)` | a file name and some text | how many letters were written |
 | `get(address)` | a web address | what the page returned, as text |
+| `ask(question)` | something to ask | whatever the person types, as text |
 
 ```plain
 set raw to read("stock.csv")
@@ -656,7 +710,18 @@ set raw to read("stock.csv")        # yes
 show raw
 ```
 
-That keeps the moment a program touches the outside world visible on its own line, rather than hidden in the middle of a calculation.
+So the moment a program touches the outside world is visible on its own line, not buried in a calculation.
+
+`ask` always gives back **text**, even when the person types a number — there's no way to know which they meant. So do sums with `number(...)`:
+
+```plain
+set age to ask("How old are you?")
+show number(age) * 2
+```
+
+Forget it and the error says where the text came from, with a button to wrap it:
+
+> Line 2: I can only multiply numbers, but got the text "10" and the number 2. `age` holds text, because that is what `ask` gives back. Wrap it in `number(age)` to do sums with it.
 
 **They can't be used inside an action.** Read at the top of your program, pass the value in, and get a value back:
 
@@ -669,15 +734,17 @@ set raw to read("stock.csv")
 show count_lines(raw)
 ```
 
-So every action you write is free of surprises: same inputs, same result, no files touched. It also means any library written in Plain runs in a browser as happily as on a computer.
+Every action you write is then free of surprises: same inputs, same result, no files touched. It also means a library written in Plain runs in a browser as happily as on a computer.
+
+`read` only reads text — `.txt`, `.csv`, `.json` and the like. Hand it a PDF, an image or a spreadsheet and it says so rather than giving back a page of nonsense.
 
 ### In a browser
 
-A web page has no file system, so `read` **asks you to pick a file** and `write` **hands one back as a download**. The program is the same either way; only the moment of choosing differs. `get` works, but only for sites that permit it — a limit of web pages, not of Plain.
+A web page has no file system, so `read` **asks you to pick a file** and `write` **hands one back as a download**. `ask` is a prompt box. The program is the same either way — you just pick the file instead of naming it. `get` works, but only for sites that permit it — a limit of web pages, not of Plain.
 
 If a file isn't chosen, or a site refuses, you get an ordinary Plain error explaining which.
 
-## 15. Order of operations
+## 16. Order of operations
 
 From loosest to tightest:
 
@@ -697,7 +764,7 @@ show (2 + 3) * 4           # 20
 
 ---
 
-## 16. Where names live
+## 17. Where names live
 
 Two rules cover all of it.
 
@@ -721,13 +788,13 @@ end
 show found
 ```
 
-That's why every accumulator starts before its loop. The loop's own name works the same way: `price` exists only for the loop.
+That's why a running total is always created before its loop. The loop's own name works the same way: `price` exists only for the loop.
 
 **Each action is sealed.** It sees its inputs, anything it creates itself, the built-in actions, and other actions — nothing else. See section 10.
 
 Together these give one rule worth remembering: **a name means one thing inside any single action, and one thing at the top level.** You'll almost never meet the error, because it only fires when you typed `set` where you meant `change`, or forgot a name was already in use.
 
-## 17. Errors
+## 18. Errors
 
 Every error names the line, underlines the exact word, says what went wrong in a sentence, and where possible says what to do about it:
 
@@ -762,15 +829,15 @@ Where the fix is unambiguous, the playground offers it as a button.
 
 ---
 
-## 18. The complete word list
+## 19. The complete word list
 
 All 29. There are no others.
 
 **Instructions** — `set`, `change`, `to`, `show`, `if`, `else`, `end`, `for`, `each`, `in`, `repeat`, `times`, `while`, `make`, `give`, `stop`
 
-**Comparing** — `is`, `not`, `more`, `less`, `than`, `at`, `most`, `least`
+**Comparing values** — `is`, `not`, `more`, `less`, `than`, `at`, `most`, `least`
 
-**Joining tests** — `and`, `or`
+**Combining conditions** — `and`, `or`
 
 **Values** — `true`, `false`, `nothing`
 
@@ -778,13 +845,14 @@ Six of these (`more`, `less`, `than`, `at`, `most`, `least`) only ever appear as
 
 **Symbols** — `+` `-` `*` `/` `%` `(` `)` `[` `]` `{` `}` `,` `.` `:` `"` `#`
 
-## 19. What Plain does not have yet
+## 20. What Plain does not have yet
 
-Being honest about the edges, so nothing surprises you:
+The edges, so nothing catches you out:
 
 - **No text formatting.** No padding, alignment or fixed decimal places, so a table of numbers comes out ragged.
 - **No error handling.** No `try`/`catch`. An error stops the program.
 - **No modules.** One program is one file; programs can't yet use each other, so there are no libraries.
+- **No dates.** No way to get today's date or work out the days between two of them.
 - **No input.** No way to ask the person a question while running.
 - **No classes.** Records hold values, not actions on those values. This may stay that way deliberately.
 - **No async, threads or timing.** Nothing runs in the background.
@@ -809,7 +877,7 @@ Every rough edge found so far is now closed:
 - **Text formatting.** The shape of it isn't decided yet — likely a small group of actions rather than one.
 - **Copying cost.** Every binding copies, which is O(n) for a large list. Copy-on-write would remove the cost without changing anything observable, if it ever matters.
 
-## 20. A complete program
+## 21. A complete program
 
 Everything in this document, used once:
 
@@ -860,3 +928,82 @@ Best first:
 ```
 
 Note the shape: `set totals to []` before the loop, `change` inside it, and `revenue` taking everything it needs as an input.
+
+---
+
+## 22. Everything, in alphabetical order
+
+Every word and every built-in action, with where to read more.
+
+### Words
+
+| Word | What it does | Section |
+|---|---|---|
+| `and` | Both conditions must be true | 9 |
+| `at least` | Bigger or the same (part of `is at least`) | 8 |
+| `at most` | Smaller or the same (part of `is at most`) | 8 |
+| `change` | Give an existing name a new value | 4 |
+| `each` | Part of `for each` | 10 |
+| `else` | The other branch of an `if`. Needs its own line | 9 |
+| `end` | Closes a block. Needs its own line | 1 |
+| `false` | One of the two things an `if` accepts | 2 |
+| `for` | Start of `for each` | 10 |
+| `give` | Hand a value back from an action, and stop it there | 11 |
+| `if` | Do something only when a condition holds | 9 |
+| `in` | Part of `for each … in` | 10 |
+| `is` | Exactly the same. There is no `==` | 8 |
+| `is at least` | Bigger or the same | 8 |
+| `is at most` | Smaller or the same | 8 |
+| `is less than` | Smaller | 8 |
+| `is more than` | Bigger | 8 |
+| `is not` | Different | 8 |
+| `less` | Part of `is less than` | 8 |
+| `make` | Create an action. Top level only | 11 |
+| `more` | Part of `is more than` | 8 |
+| `nothing` | No value yet | 2 |
+| `not` | Turns true into false | 9 |
+| `or` | Either condition may be true | 9 |
+| `repeat` | Do something a fixed number of whole times | 10 |
+| `set` | Create a name. Fails if it already exists | 4 |
+| `show` | Display something. Commas put several on one line | 5 |
+| `stop` | Leave the innermost loop early | 10 |
+| `than` | Part of `is more than` and `is less than` | 8 |
+| `times` | Part of `repeat … times` | 10 |
+| `to` | Part of `set … to` and `change … to` | 4 |
+| `true` | One of the two things an `if` accepts | 2 |
+| `while` | Keep going until a condition stops holding | 10 |
+
+### Actions
+
+| Action | What it does | Section |
+|---|---|---|
+| `add(list, item)` | A new list with one more item on the end | 14 |
+| `ask(question)` | Ask the person something. Always gives text | 15 |
+| `count(thing)` | How many items, letters or entries | 14 |
+| `first(list)` | The first item | 14 |
+| `get(address)` | Fetch a web address, as text | 15 |
+| `has(thing, item)` | Whether it's in there. True or false | 14 |
+| `join(list, separator)` | One list into one piece of text | 14 |
+| `keys(record)` | A list of a record's names | 14 |
+| `last(list)` | The last item | 14 |
+| `lower(text)` | Text in lower case | 14 |
+| `number(text)` | Text into a number. Fails if it isn't one | 14 |
+| `numbers(from, to)` | A list counting from one to the other | 14 |
+| `random(low, high)` | A whole number between the two, either end possible | 14 |
+| `read(name)` | Read a text file | 15 |
+| `remove(list, position)` | A new list without that item | 14 |
+| `reverse(list)` | It, back to front. Works on text too | 14 |
+| `round(number)` | Nearest whole number | 14 |
+| `round(number, places)` | Rounded to that many decimals | 14 |
+| `sort_down(list)` | Largest or Z–A first | 14 |
+| `sort_down(list, "field")` | Records ordered by a field, largest first | 14 |
+| `sort_up(list)` | Smallest or A–Z first | 14 |
+| `sort_up(list, "field")` | Records ordered by a field, smallest first | 14 |
+| `split(text, separator)` | One piece of text into a list | 14 |
+| `sum(list)` | The total of a list of numbers | 14 |
+| `text(value)` | Anything, as text | 14 |
+| `trim(text)` | Text without spaces at either end | 14 |
+| `upper(text)` | Text in capitals | 14 |
+| `write(name, text)` | Write a text file | 15 |
+
+The four in section 15 reach outside the program. Each needs a line of its own and none can be used inside an action.

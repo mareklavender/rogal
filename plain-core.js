@@ -1,4 +1,4 @@
-const PLAIN_VERSION = "0.4.0";
+const PLAIN_VERSION = "0.5.0";
 
 /* ============================================================
    Plain — core language
@@ -111,6 +111,14 @@ class Parser {
   is(text, o = 0) {
     const t = this.peek(o);
     return (t.type === "keyword" || t.type === "symbol") && t.text === text;
+  }
+
+  expectAlone(text, what) {
+    const tok = this.expect(text, what);
+    if (this.peek().type !== "newline" && this.peek().type !== "end-of-file")
+      throw new PlainError(`"${text}" needs a line of its own.`, tok,
+        { hint: `Put ${describeToken(this.peek())} on the next line.` });
+    return tok;
   }
 
   expect(text, what) {
@@ -256,14 +264,17 @@ class Parser {
     const then = this.parseBlock(["else", "end"], kw);
     let otherwise = null;
     if (this.is("else")) {
-      this.next();
+      const elseTok = this.next();
+      if (!this.is("if") && this.peek().type !== "newline" && this.peek().type !== "end-of-file")
+        throw new PlainError(`"else" needs a line of its own.`, elseTok,
+          { hint: `Put ${describeToken(this.peek())} on the next line. Since Plain ignores indentation, keeping "else" alone is what makes the shape of a program readable.` });
       if (this.is("if")) {
         otherwise = { kind: "block", body: [this.parseIf()] };
         return { kind: "if", test, then, otherwise, tok: kw };
       }
       otherwise = this.parseBlock(["end"], kw);
     }
-    this.expect("end", 'the word "end"');
+    this.expectAlone("end", 'the word "end"');
     return { kind: "if", test, then, otherwise, tok: kw };
   }
 
@@ -278,7 +289,7 @@ class Parser {
     this.expect("in", 'the word "in"');
     const list = this.parseExpression();
     const body = this.parseBlock(["end"], kw);
-    this.expect("end", 'the word "end"');
+    this.expectAlone("end", 'the word "end"');
     return { kind: "for", name: nameTok.text, nameTok, list, body, tok: kw };
   }
 
@@ -286,7 +297,7 @@ class Parser {
     const kw = this.next();
     const test = this.parseExpression();
     const body = this.parseBlock(["end"], kw);
-    this.expect("end", 'the word "end"');
+    this.expectAlone("end", 'the word "end"');
     return { kind: "while", test, body, tok: kw };
   }
 
@@ -295,7 +306,7 @@ class Parser {
     const count = this.parseExpression();
     this.expect("times", 'the word "times"');
     const body = this.parseBlock(["end"], kw);
-    this.expect("end", 'the word "end"');
+    this.expectAlone("end", 'the word "end"');
     return { kind: "repeat", count, body, tok: kw };
   }
 
@@ -326,7 +337,7 @@ class Parser {
     }
     this.expect(")", 'a closing ")"');
     const body = this.parseBlock(["end"], kw);
-    this.expect("end", 'the word "end"');
+    this.expectAlone("end", 'the word "end"');
     return { kind: "make", name: nameTok.text, nameTok, params, paramToks, body, tok: kw };
   }
 
@@ -378,6 +389,17 @@ class Parser {
           fix: { line: t.line, col: t.col, len: t.text.length, replacement: word } });
     }
     return left;
+  }
+
+  // The literal source between two tokens on one line, used to offer a rewrite.
+  textBetween(open, close) {
+    const parts = [];
+    for (const tk of this.toks) {
+      if (tk.line !== open.line) continue;
+      if (tk.col <= open.col || tk.col >= close.col) continue;
+      parts.push(tk.type === "text" ? tk.text : tk.text);
+    }
+    return parts.join("").replace(/,/g, ", ").replace(/\s+/g, " ").trim();
   }
 
   parseSum() {
@@ -443,8 +465,25 @@ class Parser {
     if (this.is("nothing")) { this.next(); return { kind: "literal", value: null, tok: t }; }
 
     if (this.is("(")) {
-      this.next();
+      const open = this.next();
       const e = this.parseExpression();
+      if (this.is(",")) {
+        let j = this.pos;
+        let depth = 0, close = null;
+        while (j < this.toks.length) {
+          const tk = this.toks[j];
+          if (tk.type === "newline" || tk.type === "end-of-file") break;
+          if (tk.text === "(" || tk.text === "[") depth++;
+          if (tk.text === ")" && depth === 0) { close = tk; break; }
+          if (tk.text === ")" || tk.text === "]") depth--;
+          j++;
+        }
+        throw new PlainError(`Lists are written with square brackets, not round ones.`, open, {
+          hint: `Round brackets group a calculation, like (2 + 3) * 4. To make a list, use [ ].`,
+          fix: close ? { line: open.line, col: open.col, len: (close.col + 1) - open.col,
+                         replacement: "[" + this.textBetween(open, close) + "]" } : null
+        });
+      }
       this.expect(")", 'a closing ")"');
       return e;
     }
@@ -710,6 +749,7 @@ class Interpreter {
     this.globals = new Scope(this.builtins, "global");
     this.program = null;
     this.depth = 0;
+    this.fromAsk = new Set();
   }
 
   tick(tok) {
@@ -751,6 +791,7 @@ class Interpreter {
       case "set": {
         const value = copyValue(await this.eval(node.value, scope));
         this.declare(scope, node.target.name, value, node.nameTok, "set");
+        this.noteAskOrigin(node);
         return;
       }
       case "change": return await this.execChange(node, scope);
@@ -829,6 +870,19 @@ class Interpreter {
     return v;
   }
 
+  // Remembers which names hold an answer from "ask", so the error can say so.
+  noteAskOrigin(node) {
+    if (node.target && node.target.kind === "name") {
+      const v = node.value;
+      const isAsk = v && v.kind === "call" && v.callee && v.callee.kind === "name" && v.callee.name === "ask";
+      if (isAsk) this.fromAsk.add(node.target.name); else this.fromAsk.delete(node.target.name);
+    }
+  }
+
+  askOrigin(node) {
+    return node && node.kind === "name" && this.fromAsk.has(node.name) ? node.name : null;
+  }
+
   async execChange(node, scope) {
     const value = copyValue(await this.eval(node.value, scope));
     const t = node.target;
@@ -856,7 +910,19 @@ class Interpreter {
     if (t.kind === "index") {
       const obj = await this.eval(t.object, scope);
       const idx = await this.eval(t.index, scope);
-      if (!Array.isArray(obj)) throw new PlainError(`I can only change an item on a list, but this is ${typeWord(obj)}.`, t.tok);
+      // A record looked up by name is the one place a new entry may appear:
+      // you had to type the quotes, so it is a deliberate act.
+      if (isRecord(obj)) {
+        if (typeof idx !== "string")
+          throw new PlainError(`A record is looked up by a name in quotes, but got ${describeValue(idx)}.`, t.tok,
+            { hint: `For example: change counts["apples"] to 1` });
+        obj.fields[idx] = value;
+        return;
+      }
+      if (!Array.isArray(obj)) throw new PlainError(`I can only change an item on a list or a record, but this is ${typeWord(obj)}.`, t.tok);
+      if (typeof idx === "string")
+        throw new PlainError(`A list is looked up by position, but got the text ${JSON.stringify(idx)}.`, t.tok,
+          { hint: `Lists count 1, 2, 3. Only records are looked up by name.` });
       this.checkIndex(obj, idx, t.tok);
       obj[Math.floor(idx) - 1] = value;
       return;
@@ -963,7 +1029,21 @@ class Interpreter {
       case "index": {
         const obj = await this.eval(node.object, scope);
         const idx = await this.eval(node.index, scope);
-        if (Array.isArray(obj)) { this.checkIndex(obj, idx, node.tok); return obj[Math.floor(idx) - 1]; }
+        if (isRecord(obj)) {
+          if (typeof idx !== "string")
+            throw new PlainError(`A record is looked up by a name in quotes, but got ${describeValue(idx)}.`, node.tok,
+              { hint: `For example: counts["apples"]` });
+          if (!(idx in obj.fields))
+            throw new PlainError(`This record has nothing under "${idx}".`, node.tok,
+              { hint: `Check first with has(...), or set it with change ...["${idx}"] to something.` });
+          return obj.fields[idx];
+        }
+        if (Array.isArray(obj)) {
+          if (typeof idx === "string")
+            throw new PlainError(`A list is looked up by position, but got the text ${JSON.stringify(idx)}.`, node.tok,
+              { hint: `Lists count 1, 2, 3. Only records are looked up by name.` });
+          this.checkIndex(obj, idx, node.tok); return obj[Math.floor(idx) - 1];
+        }
         if (typeof obj === "string") {
           if (typeof idx !== "number") throw new PlainError(`A position must be a number.`, node.tok);
           if (Math.floor(idx) !== idx)
@@ -1060,8 +1140,11 @@ class Interpreter {
 
     if (typeof l !== "number" || typeof r !== "number") {
       const word = { "-": "subtract", "*": "multiply", "/": "divide", "%": "take the remainder of" }[op];
+      const asked = this.askOrigin(node.left) || this.askOrigin(node.right);
       throw new PlainError(`I can only ${word} numbers, but got ${describeValue(l)} and ${describeValue(r)}.`, node.tok,
-        { hint: typeof l === "string" || typeof r === "string" ? `Use number(...) to turn text into a number.` : null });
+        { hint: asked
+            ? `"${asked}" holds text, because that is what "ask" gives back. Wrap it in number(${asked}) to do sums with it.`
+            : (typeof l === "string" || typeof r === "string" ? `Use number(...) to turn text into a number.` : null) });
     }
     if ((op === "/" || op === "%") && r === 0)
       throw new PlainError("Dividing by zero doesn't give a number.", node.tok,
@@ -1249,6 +1332,9 @@ function installBuiltins(scope, interp) {
     if (Array.isArray(a[1]))
       throw new PlainError(`"join" turns one list into text, using a separator.`, n.tok,
         { hint: `To combine two lists into one, use a + b instead.` });
+    if (l.length === 1 && Array.isArray(l[0]))
+      throw new PlainError(`"join" was given a list holding one other list, so there is nothing to put a separator between.`, n.tok,
+        { hint: `Square brackets build a new list. If you already have one, hand it over without them.` });
     expectText(a[1], "join", n);
     return l.map(toDisplay).join(a[1]);
   });
@@ -1297,6 +1383,25 @@ function installBuiltins(scope, interp) {
     return v;
   });
 
+  def("numbers", ["from", "to"], (a, n) => {
+    need(a, 2, "numbers", n);
+    for (const x of a) {
+      if (typeof x !== "number")
+        throw new PlainError(`"numbers" needs two numbers, but got ${describeValue(x)}.`, n.tok);
+      if (Math.floor(x) !== x)
+        throw new PlainError(`"numbers" needs whole numbers, but got ${fmtNumber(x)}.`, n.tok,
+          { hint: `For example: numbers(1, 10)` });
+    }
+    const [from, to] = a;
+    if (to < from) return [];
+    if (to - from + 1 > 1000000)
+      throw new PlainError(`"numbers" was asked for ${fmtNumber(to - from + 1)} of them, which is more than a million.`, n.tok,
+        { hint: `Use a "while" loop if you really need to count that far.` });
+    const out = [];
+    for (let i = from; i <= to; i++) out.push(i);
+    return out;
+  });
+
   def("keys", ["record"], (a, n) => {
     need(a, 1, "keys", n);
     if (!isRecord(a[0])) throw new PlainError(`"keys" needs a record, but got ${describeValue(a[0])}.`, n.tok);
@@ -1315,7 +1420,14 @@ function installKernel(scope, host) {
   def("read", ["name"], async (a, n) => {
     need(a, 1, "read", n);
     expectText(a[0], "read", n);
-    return await host.read(a[0], n);
+    const content = await host.read(a[0], n);
+    // A PDF, image or spreadsheet read as text is meaningless, so say so
+    // rather than handing back a page of nonsense.
+    const sample = content.slice(0, 4096);
+    if (sample.includes("\u0000") || /\uFFFD/.test(sample))
+      throw new PlainError(`"${a[0]}" isn't a text file, so there's nothing readable in it.`, n.tok,
+        { hint: `Plain reads text: .txt, .csv, .json and the like. Things such as PDFs, images and spreadsheets need to be exported to text first.` });
+    return content;
   });
 
   def("write", ["name", "text"], async (a, n) => {
@@ -1325,6 +1437,15 @@ function installKernel(scope, host) {
       throw new PlainError(`"write" needs text to write, but got ${describeValue(a[1])}.`, n.tok,
         { hint: `Use join(...) to turn a list into text, or text(...) for a single value.` });
     return await host.write(a[0], a[1], n);
+  });
+
+  def("ask", ["question"], async (a, n) => {
+    need(a, 1, "ask", n);
+    expectText(a[0], "ask", n);
+    const answer = await host.ask(a[0], n);
+    if (typeof answer !== "string")
+      throw new PlainError(`"ask" expected an answer in text.`, n.tok);
+    return answer;
   });
 
   def("get", ["address"], async (a, n) => {
@@ -1338,7 +1459,7 @@ function installKernel(scope, host) {
 
 // Used when there is no kernel at all, so the message explains rather than puzzles.
 function installAbsentKernel(scope, why) {
-  for (const name of ["read", "write", "get"]) {
+  for (const name of ["read", "write", "get", "ask"]) {
     scope.define(name, effect(name, ["..."], (a, n) => {
       throw new PlainError(`"${name}" needs somewhere to reach, and there isn't one here.`, n.tok, { hint: why });
     }));

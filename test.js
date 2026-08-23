@@ -185,6 +185,43 @@ shows("round is symmetric", `show round(2.5), round(-2.5)`, ["3 -3"]);
 shows("text and number convert", `show number("12") + 1, text(12) + "!"`, ["13 12!"]);
 shows("keys", `show keys({a: 1, b: 2})`, [`["a", "b"]`]);
 
+/* ---------- records looked up by name ---------- */
+
+shows("a record can be looked up by name",
+  `set counts to {apples: 2}\nshow counts["apples"]`, ["2"]);
+shows("a new entry can be added by name",
+  `set counts to {}\nchange counts["pears"] to 1\nshow counts`, ["{pears: 1}"]);
+shows("counting words",
+  `set counts to {}\nfor each word in ["a", "b", "a"]\n  if has(counts, word)\n    change counts[word] to counts[word] + 1\n  else\n    change counts[word] to 1\n  end\nend\nshow counts`, ['{a: 2, b: 1}']);
+fails("reading a name that isn't there",
+  `set counts to {}\nshow counts["nope"]`, "nothing under");
+fails("a record needs a name, not a number",
+  `set counts to {a: 1}\nshow counts[1]`, "name in quotes");
+fails("a list needs a position, not a name",
+  `show [1,2]["a"]`, "looked up by position");
+fails("the dot is still strict",
+  `set p to {name: "Ada"}\nchange p.age to 1`, "nothing to change");
+
+/* ---------- counting ---------- */
+
+shows("numbers makes a list", `show numbers(1, 5)`, ["[1, 2, 3, 4, 5]"]);
+shows("numbers works with for each", `set t to 0\nfor each i in numbers(1, 10)\n  change t to t + i\nend\nshow t`, ["55"]);
+shows("numbers backwards is empty", `show numbers(5, 1)`, ["[]"]);
+fails("numbers needs whole numbers", `show numbers(1, 2.5)`, "whole numbers");
+fails("numbers refuses a huge range", `show numbers(1, 9000000)`, "more than a million");
+
+/* ---------- layout that cannot lie ---------- */
+
+fails("else needs its own line", `if true\n  show 1\nelse show 2\nend`, "line of its own");
+fails("end needs its own line", `if true\n  show 1\nend show 2`, "line of its own");
+shows("else if is still allowed", `if false\n  show 1\nelse if true\n  show 2\nend`, ["2"]);
+
+/* ---------- brackets ---------- */
+
+fails("round brackets for a list", `set xs to (1, 2, 3)`, "square brackets");
+fails("join given a nested list", `show join([[1,2]], "-")`, "one other list");
+shows("grouping still works", `show (2 + 3) * 4`, ["20"]);
+
 /* ---------- errors that must stay helpful ---------- */
 
 fails("unknown name suggests yours first", `set total to 0\nshow totl`, "total");
