@@ -1,8 +1,8 @@
 # Plain — Language Reference
 
-**Version 0.3** · Complete. Every word the language has is in this document.
+**Version 0.4** · Complete. Every word the language has is in this document.
 
-Plain has 29 words and 20 built-in actions. That is the whole language. There is nothing to install, nothing to import, and no second half kept somewhere else.
+Plain has 29 words and 23 built-in actions. That is the whole language. There is nothing to install, nothing to import, and no second half kept somewhere else.
 
 ---
 
@@ -628,7 +628,56 @@ Rounding gives a number, and numbers drop trailing zeros, so `round(17.1, 2)` sh
 | `number(text)` | text that reads as a number | the number |
 | `keys(record)` | a record | a list of its field names |
 
-## 14. Order of operations
+## 14. Reaching outside the program
+
+Three actions reach beyond the program itself:
+
+| Action | Needs | Gives back |
+|---|---|---|
+| `read(name)` | the name of a file | its contents as text |
+| `write(name, text)` | a file name and some text | how many letters were written |
+| `get(address)` | a web address | what the page returned, as text |
+
+```plain
+set raw to read("stock.csv")
+set lines to split(trim(raw), "\n")
+show "Lines found:", count(lines)
+
+write("report.txt", join(lines, "\n"))
+```
+
+**Two rules apply to these three and nothing else.**
+
+**They need a line of their own.** A kernel action can be a statement by itself, or the whole value after `set` or `change` — never buried inside a larger expression:
+
+```plain
+show read("stock.csv")              # no
+set raw to read("stock.csv")        # yes
+show raw
+```
+
+That keeps the moment a program touches the outside world visible on its own line, rather than hidden in the middle of a calculation.
+
+**They can't be used inside an action.** Read at the top of your program, pass the value in, and get a value back:
+
+```plain
+make count_lines(raw)
+  give count(split(trim(raw), "\n"))
+end
+
+set raw to read("stock.csv")
+show count_lines(raw)
+```
+
+So every action you write is free of surprises: same inputs, same result, no files touched. It also means any library written in Plain runs in a browser as happily as on a computer.
+
+### In a browser
+
+A web page has no file system, so `read` **asks you to pick a file** and `write` **hands one back as a download**. The program is the same either way; only the moment of choosing differs. `get` works, but only for sites that permit it — a limit of web pages, not of Plain.
+
+If a file isn't chosen, or a site refuses, you get an ordinary Plain error explaining which.
+
+## 15. Order of operations
 
 From loosest to tightest:
 
@@ -648,7 +697,7 @@ show (2 + 3) * 4           # 20
 
 ---
 
-## 15. Where names live
+## 16. Where names live
 
 Two rules cover all of it.
 
@@ -678,7 +727,7 @@ That's why every accumulator starts before its loop. The loop's own name works t
 
 Together these give one rule worth remembering: **a name means one thing inside any single action, and one thing at the top level.** You'll almost never meet the error, because it only fires when you typed `set` where you meant `change`, or forgot a name was already in use.
 
-## 16. Errors
+## 17. Errors
 
 Every error names the line, underlines the exact word, says what went wrong in a sentence, and where possible says what to do about it:
 
@@ -713,7 +762,7 @@ Where the fix is unambiguous, the playground offers it as a button.
 
 ---
 
-## 17. The complete word list
+## 18. The complete word list
 
 All 29. There are no others.
 
@@ -729,11 +778,10 @@ Six of these (`more`, `less`, `than`, `at`, `most`, `least`) only ever appear as
 
 **Symbols** — `+` `-` `*` `/` `%` `(` `)` `[` `]` `{` `}` `,` `.` `:` `"` `#`
 
-## 18. What Plain does not have yet
+## 19. What Plain does not have yet
 
 Being honest about the edges, so nothing surprises you:
 
-- **No file or network access.** A program cannot read a file or fetch a URL. This is the kernel, and it is the next thing to build.
 - **No text formatting.** No padding, alignment or fixed decimal places, so a table of numbers comes out ragged.
 - **No error handling.** No `try`/`catch`. An error stops the program.
 - **No modules.** One program is one file; programs can't yet use each other, so there are no libraries.
@@ -753,15 +801,15 @@ Every rough edge found so far is now closed:
 6. **Silent flooring** — `repeat`, list positions and `random` all require whole numbers.
 7. **Fields appearing from a typo** — `change` can no longer invent a field.
 8. **Actions inside actions** — no longer allowed; every action lives at the top level.
+9. **No way to touch the outside world** — `read`, `write` and `get` now exist, confined to statements outside any action.
 
 ### Open questions
 
 - **Checking earlier.** Quoted field names are checked when the line runs. A pass over the whole program before running would catch them sooner, along with unknown names and wrong argument counts. Planned for after the kernel.
 - **Text formatting.** The shape of it isn't decided yet — likely a small group of actions rather than one.
-- **Effects and the kernel.** `read`, `write` and `get` are planned to work at the top level of a program only, never inside an action, so that every action stays pure. That keeps a library written in Plain runnable in a browser as well as on a computer.
 - **Copying cost.** Every binding copies, which is O(n) for a large list. Copy-on-write would remove the cost without changing anything observable, if it ever matters.
 
-## 19. A complete program
+## 20. A complete program
 
 Everything in this document, used once:
 

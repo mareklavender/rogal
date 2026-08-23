@@ -23,9 +23,21 @@ Average: 17.5
 
 Runs entirely in a browser. Nothing to install.
 
-**Status:** working prototype, v0.3.0. **The name is a placeholder** — it hasn't been decided, and the repo will be renamed when it is.
+**Status:** working prototype, v0.4.0. **The name is a placeholder** — it hasn't been decided, and the repo will be renamed when it is.
 
 ---
+
+## Just want to try it?
+
+You need one file: **`plain.html`**. Open it in a browser — nothing to install.
+
+Better still, use a link. See *Sharing it* below.
+
+To run programs against real files, you also need `plain-core.js` and `plain.js`, and Node installed:
+
+```
+node plain.js myscript.plain
+```
 
 ## Files
 
@@ -35,6 +47,7 @@ Runs entirely in a browser. Nothing to install.
 | `plain-ui.html` | The playground page. Edit this. |
 | `build.js` | Fuses the two into `plain.html`. |
 | `test.js` | 88 checks over the language. |
+| `plain.js` | Runs a program from the command line, with files and the network. |
 | `plain.html` | **Generated.** The single file to share. Never edit by hand. |
 | `plain-reference.md` | The complete language reference. |
 
@@ -54,7 +67,7 @@ Always run the tests before building. They catch the mistakes that are easy to m
 The version lives in one place, at the top of `plain-core.js`:
 
 ```js
-const PLAIN_VERSION = "0.2.0";
+const PLAIN_VERSION = "0.4.0";
 ```
 
 The build stamps it into the page, so the two can't drift apart. Bump it whenever the language changes.
@@ -63,7 +76,15 @@ The build stamps it into the page, so the two can't drift apart. Bump it wheneve
 
 Send a **link**, not the file. iOS blocks JavaScript in local HTML, so anyone opening `plain.html` from Files, Mail or a cloud drive on an iPhone sees a dead page with no examples and no Run button.
 
-Drag `plain.html` onto [Netlify Drop](https://app.netlify.com/drop) for a public URL in about a minute, no account needed. Then it works everywhere.
+**Cloud storage is not a substitute.** Dropbox, iCloud, Google Drive and Proton Drive all *preview* the file rather than serving it, so JavaScript stays blocked and you get the same dead page. It needs real hosting.
+
+Any of these give you a URL in a minute or two:
+
+- [Netlify Drop](https://app.netlify.com/drop) — drag the file on, no account needed
+- Cloudflare Pages
+- GitHub Pages — free, but only from a public repository
+
+On an iPhone without hosting, **Documents by Readdle** has a real browser engine built in and will run the file properly from local storage.
 
 ## Design decisions
 
@@ -76,13 +97,15 @@ The reasoning behind these is in `plain-reference.md`.
 - **An `if` accepts only `true` or `false`.** Nothing is secretly truthy.
 - **Nothing is silently rounded.** Fractional counts and positions are errors, not guesses.
 - **Lists count from 1**, matching how people already count.
+- **Reaching outside is visible.** `read`, `write` and `get` need a line of their own and can't be used inside an action, so every action stays free of surprises.
 
 ## What's next
 
-1. Make the evaluator async internally — invisible from the outside, and the gate on everything below.
-2. A kernel of three primitives: `read`, `write`, `get`, usable **at the top level of a program only**, never inside an action. That keeps every action pure, which in turn keeps every library runnable in a browser as well as on a computer.
+1. ~~Async evaluator~~ — done in v0.4.0, at a measured cost of 1.54x.
+2. ~~A kernel: `read`, `write`, `get`~~ — done in v0.4.0.
 3. Standalone binaries, via Bun.
 4. Libraries, written in Plain itself rather than wrapping JavaScript packages.
+5. Text formatting — padding, alignment, fixed decimals.
 
 The language is identical everywhere it runs. Only the kernel differs, and anything a browser can't do explains itself rather than failing quietly.
 

@@ -5,10 +5,11 @@ const { run, PLAIN_VERSION } = require("./plain-core.js");
 
 let passed = 0;
 const failures = [];
+const queue = [];
 
 /* shows(source, expected lines) — the program runs and prints exactly this */
-function shows(label, source, expected) {
-  const r = run(source);
+function shows(label, source, expected) { queue.push(async () => {
+  const r = await run(source);
   if (r.error) {
     failures.push(`${label}\n    expected output, got error: ${r.error.message}`);
     return;
@@ -20,11 +21,11 @@ function shows(label, source, expected) {
     return;
   }
   passed++;
-}
+}); }
 
 /* fails(source, fragment) — the program stops, and the message mentions this */
-function fails(label, source, fragment) {
-  const r = run(source);
+function fails(label, source, fragment) { queue.push(async () => {
+  const r = await run(source);
   if (!r.error) {
     failures.push(`${label}\n    expected an error mentioning ${JSON.stringify(fragment)}, but it ran cleanly`);
     return;
@@ -35,7 +36,7 @@ function fails(label, source, fragment) {
     return;
   }
   passed++;
-}
+}); }
 
 /* ---------- values and showing ---------- */
 
@@ -198,11 +199,15 @@ fails("endless loop is stopped", `while true\n  set x to 1\nend`, "stopped it");
 
 /* ---------- report ---------- */
 
-console.log(`\nPlain v${PLAIN_VERSION}`);
-if (failures.length === 0) {
-  console.log(`All ${passed} checks passed.\n`);
-  process.exit(0);
-}
-console.log(`${passed} passed, ${failures.length} FAILED:\n`);
-failures.forEach(f => console.log("  ✗ " + f + "\n"));
-process.exit(1);
+(async () => {
+  for (const check of queue) await check();
+
+  console.log(`\nPlain v${PLAIN_VERSION}`);
+  if (failures.length === 0) {
+    console.log(`All ${passed} checks passed.\n`);
+    process.exit(0);
+  }
+  console.log(`${passed} passed, ${failures.length} FAILED:\n`);
+  failures.forEach(f => console.log("  ✗ " + f + "\n"));
+  process.exit(1);
+})();

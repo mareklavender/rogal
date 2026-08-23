@@ -97,6 +97,7 @@
     background:var(--ditto);color:var(--paper);border:0;padding:10px 20px;border-radius:2px;cursor:pointer
   }
   .run:hover{background:#3B2B7A}
+  .run:disabled{background:var(--ditto-soft);cursor:default}
   .kbd{font-family:var(--mono);font-size:11px;color:var(--ditto-soft)}
 
   /* ---- output ---- */
@@ -252,6 +253,76 @@
 </script>
 
 <script>
+/* The browser has no file system, so "read" asks the person for a file and
+   "write" hands one back. Everything else behaves exactly as it does on a
+   computer, so a program written here still runs there.                  */
+const browserHost = {
+  async read(name, node) {
+    return await new Promise((resolve, reject) => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.style.display = "none";
+      document.body.appendChild(input);
+
+      let answered = false;
+      const finish = fn => { if (!answered) { answered = true; input.remove(); fn(); } };
+
+      input.addEventListener("change", () => {
+        const file = input.files && input.files[0];
+        if (!file) return finish(() => reject(refusal(name, node)));
+        const reader = new FileReader();
+        reader.onload = () => finish(() => resolve(String(reader.result)));
+        reader.onerror = () => finish(() => reject(plainly(`I couldn't read that file.`, node)));
+        reader.readAsText(file);
+      });
+      window.addEventListener("focus", () => {
+        setTimeout(() => { if (!input.files || !input.files.length) finish(() => reject(refusal(name, node))); }, 500);
+      }, { once: true });
+
+      input.click();
+    });
+  },
+
+  async write(name, text, node) {
+    const blob = new Blob([text], { type: "text/plain" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => { URL.revokeObjectURL(link.href); link.remove(); }, 1000);
+    return text.length;
+  },
+
+  async get(address, node) {
+    let response;
+    try { response = await fetch(address); }
+    catch (e) {
+      throw plainly(`I couldn't reach ${address} from this page.`, node,
+        `A web page can only fetch from sites that allow it. Running Plain on your computer has no such limit.`);
+    }
+    if (!response.ok) throw plainly(`${address} answered with ${response.status}.`, node,
+      response.status === 404 ? `That address doesn't exist.` : `The site refused the request.`);
+    return await response.text();
+  },
+};
+
+function plainly(message, node, hint) {
+  const e = new Error(message);
+  e.plain = true;
+  e.line = node && node.tok ? node.tok.line : 1;
+  e.col = node && node.tok ? node.tok.col : 1;
+  e.len = node && node.tok ? String(node.tok.text).length : 1;
+  e.hint = hint || null;
+  e.fix = null;
+  return e;
+}
+
+function refusal(name, node) {
+  return plainly(`No file was chosen for "${name}".`, node,
+    `In this page, "read" asks you to pick a file. On your computer it opens "${name}" directly.`);
+}
+
 const EXAMPLES = [
   { name:"hello", code:
 `set name to "Mark"
@@ -350,6 +421,25 @@ end
 show "Wreck says:", wreck(prices)
 show "Still:     ", prices`},
 
+  { name:"files", manual:true, code:
+`# read and get reach outside the program.
+# In this page, read asks you to pick a file.
+# On your computer it opens the file directly.
+#
+# Press Run, then choose any .csv or .txt file.
+
+set raw to read("stock.csv")
+set lines to split(trim(raw), "\\n")
+
+show "Lines found:", count(lines)
+for each line in lines
+  show "  " + line
+end
+
+# Two rules keep this predictable:
+#   a kernel action needs a line of its own
+#   and can never be used inside an action.`},
+
   { name:"a mistake", broken:true, code:
 `set total to 0
 set prices to [10, 20, 30]
@@ -382,12 +472,18 @@ EXAMPLES.forEach((ex, i) => {
   chipsEl.appendChild(b);
 });
 
+function goEl_disable(on) {
+  const b = document.getElementById("run");
+  b.disabled = on;
+  b.textContent = on ? "Running…" : "Run the program";
+}
+
 function load(i) {
   current = i;
   [...chipsEl.children].forEach((c, j) => c.setAttribute("aria-pressed", j === i ? "true" : "false"));
   codeEl.value = EXAMPLES[i].code;
   refresh();
-  execute();
+  if (!EXAMPLES[i].manual) execute();
 }
 
 function refresh(flagLine) {
@@ -403,10 +499,13 @@ function escapeHtml(s) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function execute() {
+async function execute() {
   const src = codeEl.value;
   const started = performance.now();
-  const result = run(src);
+  goEl_disable(true);
+  let result;
+  try { result = await run(src, browserHost); }
+  finally { goEl_disable(false); }
   const ms = Math.max(1, Math.round(performance.now() - started));
 
   refresh(result.error ? result.error.line : null);

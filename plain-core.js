@@ -1,4 +1,4 @@
-const PLAIN_VERSION = "0.3.0";
+const PLAIN_VERSION = "0.4.0";
 
 /* ============================================================
    Plain — core language
@@ -184,7 +184,7 @@ class Parser {
 
     const expr = this.parseExpression();
     this.endOfStatement();
-    if (expr.kind === "call") return { kind: "expression-statement", expr, tok: t };
+    if (expr.kind === "call") { expr.wholeStatement = true; return { kind: "expression-statement", expr, tok: t }; }
     throw new PlainError(`This line doesn't do anything.`, t,
       { hint: `Did you mean to start it with "show", "set" or "change"?` });
   }
@@ -237,6 +237,7 @@ class Parser {
     }
     this.next();
     const value = this.parseExpression();
+    if (value.kind === "call") value.wholeStatement = true;
     this.endOfStatement();
     return { kind: word, target, value, tok: kw, nameTok };
   }
@@ -721,9 +722,9 @@ class Interpreter {
         { hint: "A loop is probably never reaching its stopping point. Check that its test can become false." });
   }
 
-  run(program) { this.program = program; this.execBlock(program, this.globals); }
+  async run(program) { this.program = program; await this.execBlock(program, this.globals); }
 
-  execBlock(block, scope) { for (const st of block.body) this.exec(st, scope); }
+  async execBlock(block, scope) { for (const st of block.body) await this.exec(st, scope); }
 
   /* declaring a new name */
   declare(scope, name, value, tok, what) {
@@ -744,34 +745,35 @@ class Interpreter {
     scope.define(name, value);
   }
 
-  exec(node, scope) {
+  async exec(node, scope) {
     this.tick(node.tok);
     switch (node.kind) {
       case "set": {
-        const value = copyValue(this.eval(node.value, scope));
+        const value = copyValue(await this.eval(node.value, scope));
         this.declare(scope, node.target.name, value, node.nameTok, "set");
         return;
       }
-      case "change": return this.execChange(node, scope);
+      case "change": return await this.execChange(node, scope);
       case "show": {
-        this.onShow(node.parts.map(p => toDisplay(this.eval(p, scope))).join(" "));
+        const shown = await Promise.all(node.parts.map(p => this.eval(p, scope)));
+        this.onShow(shown.map(toDisplay).join(" "));
         return;
       }
       case "if": {
-        if (this.condition(node.test, scope, "if")) this.execBlock(node.then, new Scope(scope));
-        else if (node.otherwise) this.execBlock(node.otherwise, new Scope(scope));
+        if (await this.condition(node.test, scope, "if")) await this.execBlock(node.then, new Scope(scope));
+        else if (node.otherwise) await this.execBlock(node.otherwise, new Scope(scope));
         return;
       }
       case "while": {
-        while (this.condition(node.test, scope, "while")) {
+        while (await this.condition(node.test, scope, "while")) {
           this.tick(node.tok);
-          try { this.execBlock(node.body, new Scope(scope)); }
+          try { await this.execBlock(node.body, new Scope(scope)); }
           catch (e) { if (e instanceof StopSignal) break; throw e; }
         }
         return;
       }
       case "repeat": {
-        const n = this.eval(node.count, scope);
+        const n = await this.eval(node.count, scope);
         if (typeof n !== "number")
           throw new PlainError(`"repeat" needs a number of times, but got ${describeValue(n)}.`, node.tok);
         if (Math.floor(n) !== n)
@@ -779,13 +781,13 @@ class Interpreter {
             { hint: `Use round(${fmtNumber(n)}) for ${fmtNumber(roundAwayFromZero(n))} times, or write the whole number you meant.` });
         for (let i = 0; i < n; i++) {
           this.tick(node.tok);
-          try { this.execBlock(node.body, new Scope(scope)); }
+          try { await this.execBlock(node.body, new Scope(scope)); }
           catch (e) { if (e instanceof StopSignal) break; throw e; }
         }
         return;
       }
       case "for": {
-        const list = this.eval(node.list, scope);
+        const list = await this.eval(node.list, scope);
         let items;
         if (Array.isArray(list)) items = list.slice();
         else if (typeof list === "string") items = list.split("");
@@ -798,7 +800,7 @@ class Interpreter {
           this.tick(node.tok);
           const inner = new Scope(scope);
           inner.define(node.name, copyValue(item));
-          try { this.execBlock(node.body, inner); }
+          try { await this.execBlock(node.body, inner); }
           catch (e) { if (e instanceof StopSignal) break; throw e; }
         }
         return;
@@ -808,15 +810,15 @@ class Interpreter {
           { __action: true, name: node.name, params: node.params, body: node.body }, node.nameTok, "make");
         return;
       }
-      case "give": throw new GiveSignal(node.value ? this.eval(node.value, scope) : null);
+      case "give": throw new GiveSignal(node.value ? await this.eval(node.value, scope) : null);
       case "stop": throw new StopSignal();
-      case "expression-statement": this.eval(node.expr, scope); return;
+      case "expression-statement": await this.eval(node.expr, scope); return;
       default: throw new PlainError("I don't know how to run this line.", node.tok);
     }
   }
 
-  condition(node, scope, word) {
-    const v = this.eval(node, scope);
+  async condition(node, scope, word) {
+    const v = await this.eval(node, scope);
     if (typeof v !== "boolean") {
       let hint = `${word === "if" ? "An" : "A"} "${word}" needs a true/false test.`;
       if (typeof v === "number") hint += ` Try comparing it, like: ... is more than 0`;
@@ -827,8 +829,8 @@ class Interpreter {
     return v;
   }
 
-  execChange(node, scope) {
-    const value = copyValue(this.eval(node.value, scope));
+  async execChange(node, scope) {
+    const value = copyValue(await this.eval(node.value, scope));
     const t = node.target;
 
     if (t.kind === "name") {
@@ -836,7 +838,7 @@ class Interpreter {
       return;
     }
     if (t.kind === "field") {
-      const obj = this.eval(t.object, scope);
+      const obj = await this.eval(t.object, scope);
       if (!isRecord(obj)) throw new PlainError(`I can only change a field on a record, but this is ${typeWord(obj)}.`, t.tok);
       if (!(t.field in obj.fields)) {
         const keys = Object.keys(obj.fields);
@@ -852,8 +854,8 @@ class Interpreter {
       return;
     }
     if (t.kind === "index") {
-      const obj = this.eval(t.object, scope);
-      const idx = this.eval(t.index, scope);
+      const obj = await this.eval(t.object, scope);
+      const idx = await this.eval(t.index, scope);
       if (!Array.isArray(obj)) throw new PlainError(`I can only change an item on a list, but this is ${typeWord(obj)}.`, t.tok);
       this.checkIndex(obj, idx, t.tok);
       obj[Math.floor(idx) - 1] = value;
@@ -917,7 +919,7 @@ class Interpreter {
         tok, { hint: `Items are numbered from 1${list.length ? ` to ${list.length}` : ""}.` });
   }
 
-  eval(node, scope) {
+  async eval(node, scope) {
     this.tick(node.tok);
     switch (node.kind) {
       case "literal": return node.value;
@@ -934,16 +936,16 @@ class Interpreter {
         this.unknownName(node.name, node.tok, scope, false);
       }
 
-      case "list": return node.items.map(i => this.eval(i, scope));
+      case "list": return await Promise.all(node.items.map(i => this.eval(i, scope)));
 
       case "record": {
         const map = {};
-        for (const f of node.fields) map[f.key] = this.eval(f.value, scope);
+        for (const f of node.fields) map[f.key] = await this.eval(f.value, scope);
         return makeRecord(map);
       }
 
       case "field": {
-        const obj = this.eval(node.object, scope);
+        const obj = await this.eval(node.object, scope);
         if (isRecord(obj)) {
           if (!(node.field in obj.fields)) {
             const keys = Object.keys(obj.fields);
@@ -959,8 +961,8 @@ class Interpreter {
       }
 
       case "index": {
-        const obj = this.eval(node.object, scope);
-        const idx = this.eval(node.index, scope);
+        const obj = await this.eval(node.object, scope);
+        const idx = await this.eval(node.index, scope);
         if (Array.isArray(obj)) { this.checkIndex(obj, idx, node.tok); return obj[Math.floor(idx) - 1]; }
         if (typeof obj === "string") {
           if (typeof idx !== "number") throw new PlainError(`A position must be a number.`, node.tok);
@@ -977,40 +979,44 @@ class Interpreter {
       }
 
       case "call": {
-        const callee = this.eval(node.callee, scope);
-        const args = node.args.map(a => this.eval(a, scope));
-        return this.callValue(callee, args, node);
+        const callee = await this.eval(node.callee, scope);
+        if (isAction(callee) && callee.effect && !node.wholeStatement) {
+          throw new PlainError(`"${callee.name}" reaches outside the program, so it needs a line of its own.`, node.tok,
+            { hint: `Write "set something to ${callee.name}(...)" on its own line first, then use that name here.` });
+        }
+        const args = await Promise.all(node.args.map(a => this.eval(a, scope)));
+        return await this.callValue(callee, args, node);
       }
 
       case "not": {
-        const v = this.eval(node.value, scope);
+        const v = await this.eval(node.value, scope);
         if (typeof v !== "boolean")
           throw new PlainError(`"not" needs a true/false value, but got ${describeValue(v)}.`, node.tok);
         return !v;
       }
 
       case "negate": {
-        const v = this.eval(node.value, scope);
+        const v = await this.eval(node.value, scope);
         if (typeof v !== "number")
           throw new PlainError(`I can only make numbers negative, but this is ${typeWord(v)}.`, node.tok);
         return -v;
       }
 
       case "logic": {
-        const l = this.eval(node.left, scope);
+        const l = await this.eval(node.left, scope);
         if (typeof l !== "boolean")
           throw new PlainError(`"${node.op}" needs true/false on the left, but got ${describeValue(l)}.`, node.tok);
         if (node.op === "and" && !l) return false;
         if (node.op === "or" && l) return true;
-        const r = this.eval(node.right, scope);
+        const r = await this.eval(node.right, scope);
         if (typeof r !== "boolean")
           throw new PlainError(`"${node.op}" needs true/false on the right, but got ${describeValue(r)}.`, node.tok);
         return r;
       }
 
       case "compare": {
-        const l = this.eval(node.left, scope);
-        const r = this.eval(node.right, scope);
+        const l = await this.eval(node.left, scope);
+        const r = await this.eval(node.right, scope);
         if (node.op === "is") return sameValue(l, r);
         if (node.op === "is not") return !sameValue(l, r);
         if (typeof l === "string" && typeof r === "string") {
@@ -1028,14 +1034,14 @@ class Interpreter {
         }
       }
 
-      case "arith": return this.arith(node, scope);
+      case "arith": return await this.arith(node, scope);
       default: throw new PlainError("I don't understand this expression.", node.tok);
     }
   }
 
-  arith(node, scope) {
-    const l = this.eval(node.left, scope);
-    const r = this.eval(node.right, scope);
+  async arith(node, scope) {
+    const l = await this.eval(node.left, scope);
+    const r = await this.eval(node.right, scope);
     const op = node.op;
 
     if (op === "+") {
@@ -1069,9 +1075,12 @@ class Interpreter {
     }
   }
 
-  callValue(callee, args, node) {
+  async callValue(callee, args, node) {
     if (isAction(callee)) {
-      if (callee.native) return callee.native(args, node, this);
+      if (callee.effect && this.depth > 0)
+        throw new PlainError(`"${callee.name}" can't be used inside an action.`, node.tok,
+          { hint: `Read or fetch at the top level of your program, then pass the value in. That keeps every action free of surprises.` });
+      if (callee.native) return await callee.native(args, node, this);
       if (args.length !== callee.params.length)
         throw new PlainError(
           `"${callee.name}" needs ${callee.params.length} value${callee.params.length === 1 ? "" : "s"}, but got ${args.length}.`,
@@ -1086,7 +1095,7 @@ class Interpreter {
           `"${callee.name}" has called itself ${MAX_DEPTH} times without finishing.`, node.tok,
           { hint: `Every path through an action must eventually reach a "give" that doesn't call it again. Check the test that's meant to stop it.` });
       }
-      try { this.execBlock(callee.body, inner); }
+      try { await this.execBlock(callee.body, inner); }
       catch (e) { if (e instanceof GiveSignal) return e.value; throw e; }
       finally { this.depth--; }
       return null;
@@ -1099,6 +1108,10 @@ class Interpreter {
 /* ---------- builtins ---------- */
 
 function native(name, params, fn) { return { __action: true, native: fn, name, params }; }
+
+// A kernel action reaches outside the program. These are registered only where
+// there is something to reach: a computer, or a browser that can ask the person.
+function effect(name, params, fn) { return { __action: true, native: fn, name, params, effect: true }; }
 
 function need(args, n, name, node) {
   if (args.length !== n)
@@ -1291,9 +1304,50 @@ function installBuiltins(scope, interp) {
   });
 }
 
+/* ---------- the kernel ----------
+   read, write and get are the only actions that reach outside the program.
+   They are registered by whoever starts the interpreter, so a page with no
+   file system simply doesn't have them, and says so plainly.            */
+
+function installKernel(scope, host) {
+  const def = (name, params, fn) => scope.define(name, effect(name, params, fn));
+
+  def("read", ["name"], async (a, n) => {
+    need(a, 1, "read", n);
+    expectText(a[0], "read", n);
+    return await host.read(a[0], n);
+  });
+
+  def("write", ["name", "text"], async (a, n) => {
+    need(a, 2, "write", n);
+    expectText(a[0], "write", n);
+    if (typeof a[1] !== "string")
+      throw new PlainError(`"write" needs text to write, but got ${describeValue(a[1])}.`, n.tok,
+        { hint: `Use join(...) to turn a list into text, or text(...) for a single value.` });
+    return await host.write(a[0], a[1], n);
+  });
+
+  def("get", ["address"], async (a, n) => {
+    need(a, 1, "get", n);
+    expectText(a[0], "get", n);
+    if (!/^https?:\/\//i.test(a[0]))
+      throw new PlainError(`"get" needs a web address starting with https://, but got ${JSON.stringify(a[0])}.`, n.tok);
+    return await host.get(a[0], n);
+  });
+}
+
+// Used when there is no kernel at all, so the message explains rather than puzzles.
+function installAbsentKernel(scope, why) {
+  for (const name of ["read", "write", "get"]) {
+    scope.define(name, effect(name, ["..."], (a, n) => {
+      throw new PlainError(`"${name}" needs somewhere to reach, and there isn't one here.`, n.tok, { hint: why });
+    }));
+  }
+}
+
 /* ---------- entry point ---------- */
 
-function run(source) {
+async function run(source, host) {
   const output = [];
   try {
     const program = new Parser(tokenise(source)).parseProgram();
@@ -1301,7 +1355,10 @@ function run(source) {
       output.push(line);
       if (output.length > 2000) throw new PlainError("This program showed more than 2000 lines, so I stopped it.", null);
     });
-    interp.run(program);
+    if (host) installKernel(interp.builtins, host);
+    else installAbsentKernel(interp.builtins,
+      "Plain is running somewhere with no files and no network. Run it on your computer, or in the playground use the version that can ask you for a file.");
+    await interp.run(program);
     return { output, error: null };
   } catch (e) {
     if (e instanceof GiveSignal)
