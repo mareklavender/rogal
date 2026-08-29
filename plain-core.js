@@ -1,4 +1,4 @@
-const PLAIN_VERSION = "0.6.0";
+const PLAIN_VERSION = "0.6.1";
 
 /* ============================================================
    Plain — core language
@@ -1498,6 +1498,13 @@ function momentRecord(makeRecord) {
 
 function installKernel(scope, host) {
   const def = (name, params, fn) => scope.define(name, effect(name, params, fn));
+
+  // Whoever starts the interpreter must supply all five. Saying so here beats
+  // letting an internal error escape halfway through someone's program.
+  for (const needed of ["read", "write", "get", "ask", "now"]) {
+    if (typeof host[needed] !== "function")
+      throw new Error(`This copy of Plain was started without a way to "${needed}". All five of read, write, get, ask and now are required.`);
+  }
 
   def("read", ["name"], async (a, n) => {
     need(a, 1, "read", n);

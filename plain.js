@@ -38,6 +38,13 @@ const host = {
     return text.length;
   },
 
+  async ask(question, node) {
+    const answer = await askOnTheTerminal(question);
+    if (answer === null)
+      throw plainly(`Nothing was answered.`, node, `"ask" waits for a reply, and the input ended first.`);
+    return answer;
+  },
+
   async now() {
     return momentRecord(makeRecord);
   },
@@ -51,6 +58,18 @@ const host = {
     return await response.text();
   },
 };
+
+function askOnTheTerminal(question) {
+  const readline = require("readline");
+  return new Promise(resolve => {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    let answered = false;
+    const settle = value => { if (!answered) { answered = true; resolve(value); } };
+    rl.question(question + " ", answer => { settle(answer); rl.close(); });
+    // Only counts as "no answer" if the input ended before one arrived.
+    rl.on("close", () => settle(null));
+  });
+}
 
 function plainly(message, node, hint) {
   const e = new Error(message);

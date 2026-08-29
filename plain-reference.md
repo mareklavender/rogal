@@ -1,6 +1,6 @@
 # Plain — Language Reference
 
-**Version 0.6** · Complete. Every word the language has is in this document.
+**Version 0.6.1** · Complete. Every word the language has is in this document.
 
 Plain has 29 words and 30 built-in actions. That's the whole language — nothing to install and nothing to import.
 
@@ -758,10 +758,25 @@ So the moment a program touches the outside world is visible on its own line, no
 set moment to now()
 
 show moment.date        # 2026-08-22
-show moment.time        # 19:03:08
 show moment.weekday     # Saturday
-show moment.year, moment.month, moment.day
+show moment.day         # 22
 ```
+
+Nine fields, so nothing needs pulling apart by hand:
+
+| Field | What it holds | Example |
+|---|---|---|
+| `date` | the whole date, ready to sort | `"2026-08-22"` |
+| `time` | the whole time | `"19:03:08"` |
+| `year` | a number | `2026` |
+| `month` | a number, 1 to 12 | `8` |
+| `day` | a number — which day of the month | `22` |
+| `weekday` | the name of the day | `"Saturday"` |
+| `hour` | a number, 0 to 23 | `19` |
+| `minute` | a number | `3` |
+| `second` | a number | `8` |
+
+`day` counts, `weekday` names — those are the two people mix up. `month` is a number too; `dates.plain` has `month_name` if you want "August". There's no am/pm, since `hour` runs 0 to 23, and everything is your computer's local time rather than UTC.
 
 Dates written as `2026-08-22` sort and compare correctly on their own, because the biggest part comes first — so `sort_up` on a list of them does the right thing with no extra work. For counting days, moving forwards and naming months, `dates.plain` in the repository is a small library written in Plain that you can paste above your own code.
 

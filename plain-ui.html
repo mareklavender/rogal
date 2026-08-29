@@ -294,6 +294,14 @@ const browserHost = {
     return text.length;
   },
 
+  async ask(question, node) {
+    const answer = window.prompt(question);
+    if (answer === null)
+      throw plainly(`Nothing was answered.`, node,
+        `"ask" waits for a reply. In this page that's a prompt box, and it was closed without one.`);
+    return answer;
+  },
+
   async now() {
     return momentRecord(makeRecord);
   },

@@ -21,7 +21,7 @@ Average: 17.5
 
 Small enough to hold in your head, and solid enough to write real scripts in. That makes it a good first language, and a reasonable one to stay with.
 
-**Status:** working prototype, v0.6.0. **The name is a placeholder** — it hasn't been decided, and the repo will be renamed when it is.
+**Status:** working prototype, v0.6.1. **The name is a placeholder** — it hasn't been decided, and the repo will be renamed when it is.
 
 ---
 
@@ -50,7 +50,7 @@ Files are read and written next to the script, not next to wherever your termina
 | `plain-reference.md` | The reference. Edit this. |
 | `build.js` | Squashes the first two into `plain.html`. |
 | `make-pdf.py` | Turns the reference into a PDF. Needs pandoc, wkhtmltopdf, reportlab, pypdf. |
-| `test.js` | 124 checks. |
+| `test.js` | 131 checks, including the kernel against a stand-in host. |
 | `plain.js` | The command-line runner. |
 | `dates.plain` | A date library, written in Plain. Paste it above your own code. |
 | `plain.html` | **Generated.** The one file to share. Don't edit it. |
@@ -67,7 +67,7 @@ Run the tests first, always. They catch the mistakes that are easy to make and h
 The version lives in one place, the top of `plain-core.js`:
 
 ```js
-const PLAIN_VERSION = "0.6.0";
+const PLAIN_VERSION = "0.6.1";
 ```
 
 The build stamps it into the page, so the two can't drift apart. Bump it whenever the language changes.

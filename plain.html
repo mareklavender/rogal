@@ -163,7 +163,7 @@
 <div class="wrap">
 
   <header class="masthead">
-    <p class="eyebrow">Version 0.6.0 · runs entirely in this page</p>
+    <p class="eyebrow">Version 0.6.1 · runs entirely in this page</p>
     <h1 class="wordmark">Plain</h1>
     <p class="standfirst">A small language that is genuinely easy to write. Twenty-nine words, one way to write each thing, and a mistake tells you <em>what to do about it</em> instead of what went wrong inside the machine.</p>
   </header>
@@ -249,7 +249,7 @@
 </div>
 
 <script>
-const PLAIN_VERSION = "0.6.0";
+const PLAIN_VERSION = "0.6.1";
 
 /* ============================================================
    Plain — core language
@@ -1750,6 +1750,13 @@ function momentRecord(makeRecord) {
 function installKernel(scope, host) {
   const def = (name, params, fn) => scope.define(name, effect(name, params, fn));
 
+  // Whoever starts the interpreter must supply all five. Saying so here beats
+  // letting an internal error escape halfway through someone's program.
+  for (const needed of ["read", "write", "get", "ask", "now"]) {
+    if (typeof host[needed] !== "function")
+      throw new Error(`This copy of Plain was started without a way to "${needed}". All five of read, write, get, ask and now are required.`);
+  }
+
   def("read", ["name"], async (a, n) => {
     need(a, 1, "read", n);
     expectText(a[0], "read", n);
@@ -1878,6 +1885,14 @@ const browserHost = {
     link.click();
     setTimeout(() => { URL.revokeObjectURL(link.href); link.remove(); }, 1000);
     return text.length;
+  },
+
+  async ask(question, node) {
+    const answer = window.prompt(question);
+    if (answer === null)
+      throw plainly(`Nothing was answered.`, node,
+        `"ask" waits for a reply. In this page that's a prompt box, and it was closed without one.`);
+    return answer;
   },
 
   async now() {

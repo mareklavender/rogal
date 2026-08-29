@@ -259,6 +259,50 @@ fails("wrong kind of arithmetic", `show "a" * 2`, "multiply");
 fails("missing record field lists the real ones", `set p to {name: "a"}\nshow p.naem`, "name");
 fails("endless loop is stopped", `while true\n  set x to 1\nend`, "stopped it");
 
+/* ---------- the kernel, against a stand-in host ----------
+   These matter: without them, an action the kernel offers but no host
+   provides slips through unnoticed until someone runs into it.          */
+
+const { makeRecord, momentRecord } = require("./plain-core.js");
+
+const testHost = {
+  files: { "stock.csv": "apples,10\nbananas,4\n" },
+  written: {},
+  async read(name, node) {
+    if (!(name in this.files)) { const e = new Error(`no file "${name}"`); e.plain = true; e.line = 1; e.col = 1; e.len = 1; throw e; }
+    return this.files[name];
+  },
+  async write(name, text) { this.written[name] = text; return text.length; },
+  async get() { return "fetched"; },
+  async ask() { return "42"; },
+  async now() { return momentRecord(makeRecord); },
+};
+
+function withHost(label, source, expected) { queue.push(async () => {
+  const r = await run(source, testHost);
+  if (r.error) { failures.push(`${label}\n    expected output, got error: ${r.error.message}`); return; }
+  const got = r.output.join("\n");
+  if (got !== expected.join("\n")) {
+    failures.push(`${label}\n    expected: ${JSON.stringify(expected.join("\n"))}\n    got:      ${JSON.stringify(got)}`);
+    return;
+  }
+  passed++;
+}); }
+
+withHost("read", `set raw to read("stock.csv")\nshow count(split(trim(raw), "\\n"))`, ["2"]);
+withHost("write", `set n to write("out.txt", "hello")\nshow n`, ["5"]);
+withHost("get", `set page to get("https://example.com")\nshow page`, ["fetched"]);
+withHost("ask", `set answer to ask("How old?")\nshow number(answer) * 2`, ["84"]);
+withHost("now gives a record", `set moment to now()\nshow count(keys(moment))`, ["9"]);
+withHost("now has the fields the reference lists",
+  `set moment to now()\nfor each field in ["date","time","year","month","day","hour","minute","second","weekday"]\n  if not has(moment, field)\n    show "missing " + field\n  end\nend\nshow "all present"`, ["all present"]);
+
+queue.push(async () => {
+  const r = await run(`set a to ask("x")\nshow a * 2`, testHost);
+  if (r.error && r.error.hint && r.error.hint.includes("ask")) passed++;
+  else failures.push("arithmetic on an asked value should mention ask");
+});
+
 /* ---------- report ---------- */
 
 (async () => {
