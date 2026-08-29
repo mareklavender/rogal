@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0
+
+- `use "dates"` brings in the actions from another file. Libraries hold only actions, `use` lines sit at the top, and everything is followed before the program runs — so a missing file, a clashing name or a circle is reported straight away.
+- `dates` travels with the playground, so `use "dates"` works in a browser as well as on a computer.
+- Standalone binaries. Bun compiles Plain into a single file that runs with nothing installed.
+- The reference no longer lists plans or a history of what was settled. It describes the language as it is; `CHANGELOG.md` covers the rest.
+- A full proofread. Among other things, the kernel section still said "three actions" when there are five.
+
 ## 0.6.2
 
 - A missing `end` now says how many blocks were opened, how many were found, and which block the last `end` actually closed. Before, a missing `end` inside a nest blamed the outermost block.

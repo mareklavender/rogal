@@ -163,9 +163,9 @@
 <div class="wrap">
 
   <header class="masthead">
-    <p class="eyebrow">Version 0.6.2 · runs entirely in this page</p>
+    <p class="eyebrow">Version 0.7.0 · runs entirely in this page</p>
     <h1 class="wordmark">Plain</h1>
-    <p class="standfirst">A small language that is genuinely easy to write. Twenty-nine words, one way to write each thing, and a mistake tells you <em>what to do about it</em> instead of what went wrong inside the machine.</p>
+    <p class="standfirst">A small language that is genuinely easy to write. Thirty words, one way to write each thing, and a mistake tells you <em>what to do about it</em> instead of what went wrong inside the machine.</p>
   </header>
 
   <div class="exercises" id="exercises"></div>
@@ -197,7 +197,7 @@
 
   <section class="reference">
     <h2 class="ref-title">The whole language</h2>
-    <p class="ref-sub">Not a summary — 29 words and 30 built-in actions is everything Plain has. Nothing to install, nothing to import.</p>
+    <p class="ref-sub">Not a summary — 30 words and 30 built-in actions is everything Plain has. Nothing to install, nothing to import.</p>
     <div class="ref-grid">
       <div class="ref-block">
         <h3>Instructions</h3>
@@ -210,6 +210,7 @@
         <div class="ref-row"><code>while test</code><span>Keep going until the test is false.</span></div>
         <div class="ref-row"><code>stop</code><span>Leave the loop early.</span></div>
         <div class="ref-row"><code>make name(a)</code><span>Create an action. <code>give</code> hands a value back.</span></div>
+        <div class="ref-row"><code>use "dates"</code><span>Bring in the actions from another file.</span></div>
       </div>
       <div class="ref-block">
         <h3>Comparing</h3>
@@ -249,7 +250,7 @@
 </div>
 
 <script>
-const PLAIN_VERSION = "0.6.2";
+const PLAIN_VERSION = "0.7.0";
 
 /* ============================================================
    Plain — core language
@@ -259,7 +260,7 @@ const PLAIN_VERSION = "0.6.2";
 const MAX_DEPTH = 300;
 
 const KEYWORDS = new Set([
-  "set","change","to","show","if","else","end","for","each","in","repeat","times",
+  "set","change","to","show","use","if","else","end","for","each","in","repeat","times",
   "while","make","give","is","not","and","or","true","false","nothing",
   "more","less","than","at","most","least","stop"
 ]);
@@ -431,6 +432,7 @@ class Parser {
 
     if (t.type === "keyword") {
       switch (t.text) {
+        case "use": return this.parseUse();
         case "set": return this.parseAssign("set");
         case "change": return this.parseAssign("change");
         case "show": return this.parseShow();
@@ -513,6 +515,20 @@ class Parser {
     if (value.kind === "call") value.wholeStatement = true;
     this.endOfStatement();
     return { kind: word, target, value, tok: kw, nameTok };
+  }
+
+  parseUse() {
+    const kw = this.next();
+    if (this.blockDepth > 0)
+      throw new PlainError(`"use" belongs at the top of a program, not inside a block.`, kw,
+        { hint: `Put every "use" line above the rest of your code.` });
+    const nameTok = this.peek();
+    if (nameTok.type !== "text")
+      throw new PlainError(`After "use" I need the name of a file in quotes.`, nameTok,
+        { hint: `For example: use "dates"` });
+    this.next();
+    this.endOfStatement();
+    return { kind: "use", name: nameTok.value, nameTok, tok: kw };
   }
 
   parseShow() {
@@ -1117,6 +1133,7 @@ class Interpreter {
         return;
       }
       case "give": throw new GiveSignal(node.value ? await this.eval(node.value, scope) : null);
+      case "use": return;                       // already gathered before the run
       case "stop": throw new StopSignal();
       case "expression-statement": await this.eval(node.expr, scope); return;
       default: throw new PlainError("I don't know how to run this line.", node.tok);
@@ -1827,6 +1844,44 @@ function installAbsentKernel(scope, why) {
 
 /* ---------- entry point ---------- */
 
+// Follows every "use" line, parses what it finds, and hands back the actions
+// those files define. Runs before the program does, so a missing library or a
+// clashing name is reported before a single line executes.
+async function gatherLibraries(program, host, seen, chain) {
+  const collected = [];
+  for (const st of program.body) {
+    if (st.kind !== "use") continue;
+    const name = st.name;
+
+    if (chain.includes(name))
+      throw new PlainError(`"${name}" ends up using itself.`, st.nameTok,
+        { hint: `The chain was: ${chain.concat(name).join(" → ")}. A library can't depend on itself, directly or in a circle.` });
+    if (seen.has(name)) continue;
+    seen.add(name);
+
+    if (!host || typeof host.library !== "function")
+      throw new PlainError(`"use" needs somewhere to find "${name}", and there isn't one here.`, st.nameTok,
+        { hint: `Run Plain on your computer, where it can look for ${name}.plain next to your program.` });
+
+    const text = await host.library(name, st);
+    let inner;
+    try { inner = new Parser(tokenise(text)).parseProgram(); }
+    catch (e) {
+      if (e && e.plain) e.message = `In "${name}.plain", line ${e.line}: ${e.message}`;
+      throw e;
+    }
+    const nested = await gatherLibraries(inner, host, seen, chain.concat(name));
+    collected.push(...nested);
+    for (const s2 of inner.body) {
+      if (s2.kind === "make") collected.push({ from: name, node: s2 });
+      else if (s2.kind !== "use")
+        throw new PlainError(`"${name}.plain" has a line that isn't an action.`, st.nameTok,
+          { hint: `A library holds only "make" blocks and its own "use" lines. Line ${s2.tok ? s2.tok.line : "?"} of ${name}.plain is something else.` });
+    }
+  }
+  return collected;
+}
+
 async function run(source, host) {
   const output = [];
   try {
@@ -1835,6 +1890,15 @@ async function run(source, host) {
       output.push(line);
       if (output.length > 2000) throw new PlainError("This program showed more than 2000 lines, so I stopped it.", null);
     });
+    const libraries = await gatherLibraries(program, host, new Set(), []);
+    for (const { from, node } of libraries) {
+      if (interp.globals.vars.has(node.name))
+        throw new PlainError(`Two actions are called "${node.name}".`, node.nameTok,
+          { hint: `One comes from ${from}.plain. Rename one of them.` });
+      interp.globals.define(node.name,
+        { __action: true, name: node.name, params: node.params, body: node.body });
+    }
+
     if (host) installKernel(interp.builtins, host);
     else installAbsentKernel(interp.builtins,
       "Plain is running somewhere with no files and no network. Run it on your computer, or in the playground use the version that can ask you for a file.");
@@ -1860,10 +1924,24 @@ if (typeof module !== "undefined") module.exports = { run, PLAIN_VERSION, makeRe
 </script>
 
 <script>
+// Libraries that travel with the page, so "use" works here as well.
+const SHIPPED_LIBRARIES = {
+  dates: "# dates.plain \u2014 working with dates, written in Plain itself.\n#\n# Dates here are text in the form \"2026-08-22\". Written that way they\n# already sort and compare correctly, so this file only adds the parts\n# that need arithmetic: counting days, moving forwards, and naming the day.\n#\n# Nothing in this file reaches outside the program. Paste it above your\n# own code and call the actions. To find today, use now() in your program\n# and pass the date in.\n\nmake is_leap_year(year)\n  if year % 400 is 0\n    give true\n  end\n  if year % 100 is 0\n    give false\n  end\n  give year % 4 is 0\nend\n\nmake days_in_month(year, month)\n  set lengths to [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]\n  if month is 2\n    if is_leap_year(year)\n      give 29\n    end\n    give 28\n  end\n  give lengths[month]\nend\n\nmake date_parts(date)\n  set bits to split(date, \"-\")\n  if count(bits) is not 3\n    give nothing\n  end\n  give {year: number(bits[1]), month: number(bits[2]), day: number(bits[3])}\nend\n\nmake is_date(date)\n  set parts to date_parts(date)\n  if parts is nothing\n    give false\n  end\n  if parts.month is less than 1 or parts.month is more than 12\n    give false\n  end\n  if parts.day is less than 1\n    give false\n  end\n  give parts.day is at most days_in_month(parts.year, parts.month)\nend\n\n# Days since the start of year 1, so two dates can be subtracted.\nmake day_number(date)\n  set parts to date_parts(date)\n  set years to parts.year - 1\n  set total to years * 365 + numbers_below(years, 4) - numbers_below(years, 100) + numbers_below(years, 400)\n\n  set month to 1\n  while month is less than parts.month\n    change total to total + days_in_month(parts.year, month)\n    change month to month + 1\n  end\n\n  give total + parts.day\nend\n\nmake numbers_below(n, step)\n  give round((n - (n % step)) / step)\nend\n\nmake days_between(first, second)\n  give day_number(second) - day_number(first)\nend\n\nmake add_days(date, howMany)\n  set parts to date_parts(date)\n  set year to parts.year\n  set month to parts.month\n  set day to parts.day + howMany\n\n  while day is more than days_in_month(year, month)\n    change day to day - days_in_month(year, month)\n    change month to month + 1\n    if month is more than 12\n      change month to 1\n      change year to year + 1\n    end\n  end\n\n  while day is less than 1\n    change month to month - 1\n    if month is less than 1\n      change month to 12\n      change year to year - 1\n    end\n    change day to day + days_in_month(year, month)\n  end\n\n  give text(year) + \"-\" + two_digits(month) + \"-\" + two_digits(day)\nend\n\nmake two_digits(n)\n  if n is less than 10\n    give \"0\" + n\n  end\n  give text(n)\nend\n\nmake weekday(date)\n  set names to [\"Monday\", \"Tuesday\", \"Wednesday\", \"Thursday\", \"Friday\", \"Saturday\", \"Sunday\"]\n  give names[(day_number(date) - 1) % 7 + 1]\nend\n\nmake month_name(date)\n  set names to [\"January\", \"February\", \"March\", \"April\", \"May\", \"June\",\n                \"July\", \"August\", \"September\", \"October\", \"November\", \"December\"]\n  give names[date_parts(date).month]\nend\n\n# \"2026-08-22\" becomes \"22 August 2026\"\nmake long_date(date)\n  set parts to date_parts(date)\n  give parts.day + \" \" + month_name(date) + \" \" + parts.year\nend\n",
+};
+
 /* The browser has no file system, so "read" asks the person for a file and
    "write" hands one back. Everything else behaves exactly as it does on a
    computer, so a program written here still runs there.                  */
 const browserHost = {
+  async library(name, node) {
+    if (name in SHIPPED_LIBRARIES) return SHIPPED_LIBRARIES[name];
+    const known = Object.keys(SHIPPED_LIBRARIES);
+    throw plainly(`There's no library called "${name}" in this page.`, node,
+      known.length
+        ? `This page has: ${known.join(", ")}. On your computer, "use" also finds files next to your program.`
+        : `On your computer, "use" finds files next to your program.`);
+  },
+
   async read(name, node) {
     return await new Promise((resolve, reject) => {
       const input = document.createElement("input");

@@ -303,6 +303,59 @@ queue.push(async () => {
   else failures.push("arithmetic on an asked value should mention ask");
 });
 
+/* ---------- libraries ---------- */
+
+const libraryHost = Object.assign({}, testHost, {
+  shelf: {
+    greet: `make hello(who)\n  give "Hello, " + who\nend`,
+    layered: `use "greet"\nmake shout(who)\n  give upper(hello(who))\nend`,
+    loopy: `use "loopy"\nmake f()\n  give 1\nend`,
+    notALibrary: `show "side effect"\nmake f()\n  give 1\nend`,
+    clashes: `make hello(x)\n  give 1\nend`,
+  },
+  async library(name, node) {
+    if (name in this.shelf) return this.shelf[name];
+    const e = new Error(`no library "${name}"`); e.plain = true; e.line = 1; e.col = 1; e.len = 1;
+    throw e;
+  },
+});
+
+function withLibs(label, source, expected) { queue.push(async () => {
+  const r = await run(source, libraryHost);
+  if (r.error) { failures.push(`${label}\n    expected output, got error: ${r.error.message}`); return; }
+  const got = r.output.join("\n");
+  if (got !== expected.join("\n")) {
+    failures.push(`${label}\n    expected: ${JSON.stringify(expected.join("\n"))}\n    got:      ${JSON.stringify(got)}`);
+    return;
+  }
+  passed++;
+}); }
+
+function libsFail(label, source, fragment) { queue.push(async () => {
+  const r = await run(source, libraryHost);
+  if (!r.error) { failures.push(`${label}\n    expected an error, but it ran`); return; }
+  const whole = r.error.message + " " + (r.error.hint || "");
+  if (!whole.includes(fragment)) {
+    failures.push(`${label}\n    expected a message mentioning ${JSON.stringify(fragment)}\n    got: ${r.error.message}`);
+    return;
+  }
+  passed++;
+}); }
+
+withLibs("use brings in an action", `use "greet"\nshow hello("Ada")`, ["Hello, Ada"]);
+withLibs("a library may use another", `use "layered"\nshow shout("Ada")`, ["HELLO, ADA"]);
+withLibs("using the same one twice is fine", `use "greet"\nuse "greet"\nshow hello("Ada")`, ["Hello, Ada"]);
+libsFail("a missing library", `use "absent"\nshow 1`, "absent");
+libsFail("a library that isn't only actions", `use "notALibrary"\nshow 1`, "isn't an action");
+libsFail("a library that uses itself", `use "loopy"\nshow 1`, "ends up using itself");
+libsFail("two actions with one name", `use "greet"\nuse "clashes"\nshow 1`, "Two actions are called");
+libsFail("use inside a block", `if true\n  use "greet"\nend`, "top of a program");
+queue.push(async () => {
+  const r = await run('use "greet"\nshow 1');          // no host at all
+  if (r.error && r.error.hint && r.error.hint.includes("look for")) passed++;
+  else failures.push("use with no host should explain there is nowhere to look");
+});
+
 /* ---------- report ---------- */
 
 (async () => {

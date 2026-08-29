@@ -1,8 +1,8 @@
 # Plain — Language Reference
 
-**Version 0.6.2** · Complete. Every word the language has is in this document.
+**Version 0.7** · Complete. Every word the language has is in this document.
 
-Plain has 29 words and 30 built-in actions. That's the whole language — nothing to install and nothing to import.
+Plain has 30 words and 30 built-in actions. That's the whole language — nothing to install and nothing to import.
 
 ---
 
@@ -106,7 +106,7 @@ Two traps catch nearly everyone.
 
 **Round brackets don't make a list.** `(1, 2, 3)` is an error, and Plain will offer to rewrite it as `[1, 2, 3]`.
 
-**Square brackets build a new list — they don't mark where one goes.** If you already have a list, hand it over as it is:
+**Square brackets build a new list. They don't mark where one goes.** If you already have a list, hand it over as it is:
 
 ```plain
 set a to [1, 2]
@@ -236,7 +236,7 @@ This is the rule that makes everything else fit together:
 
 > **Anywhere a value is allowed, any expression that produces a value is allowed.**
 
-An **expression** is anything that produces a value: a number, some text, a name, a list, arithmetic, a comparison, a field, a position, or an action call. A **statement** is a whole instruction: `set`, `change`, `show`, `if`, `for each`, `repeat`, `while`, `make`, `give`, `stop`.
+An **expression** is anything that produces a value: a number, some text, a name, a list, arithmetic, a comparison, a field, a position, or an action call. A **statement** is a whole instruction: `set`, `change`, `show`, `use`, `if`, `for each`, `repeat`, `while`, `make`, `give`, `stop`.
 
 So `count(prices)` produces a number, and can go anywhere a number can go:
 
@@ -768,7 +768,7 @@ Rounding gives a number, and numbers drop trailing zeros, so `round(17.1, 2)` sh
 
 ## 15. Reaching outside the program
 
-Three actions reach beyond the program itself:
+Five actions reach beyond the program itself:
 
 | Action | Needs | Gives back |
 |---|---|---|
@@ -786,7 +786,7 @@ show "Lines found:", count(lines)
 write("report.txt", join(lines, "\n"))
 ```
 
-**Two rules apply to these three and nothing else.**
+**Two rules apply to these five and nothing else.**
 
 **They need a line of their own.** A kernel action can be a statement by itself, or the whole value after `set` or `change` — never buried inside a larger expression:
 
@@ -858,7 +858,37 @@ A web page has no file system, so `read` **asks you to pick a file** and `write`
 
 If a file isn't chosen, or a site refuses, you get an ordinary Plain error explaining which.
 
-## 16. Order of operations
+## 16. Using another file
+
+An action you'll want twice belongs in its own file. `use` brings one in:
+
+```plain
+use "dates"
+
+set moment to now()
+show long_date(moment.date)      # 29 August 2026
+show weekday("2026-12-25")       # Friday
+```
+
+`dates.plain` sits next to your program, and every action it defines becomes available as though you'd written it yourself.
+
+**A library holds only actions.** `make` blocks, and `use` lines of its own — nothing else. A stray `show` in a library would run every time somebody included it, which is the kind of surprise the rest of the language works to avoid.
+
+**`use` lines go at the top**, above your own code and never inside a block. All of them are followed before a single line runs, so a missing file or a clashing name is reported straight away rather than halfway through.
+
+Three things are checked for you:
+
+- **A file that isn't there** — named, with where it was looked for.
+- **Two actions with the same name** — named, and which file the other came from.
+- **A circle**, where two libraries include each other — reported with the chain that led back round.
+
+Using the same library twice does no harm; the second `use` is ignored.
+
+### Where it looks
+
+On your computer, `use "dates"` looks for `dates.plain` next to your program, then next to Plain itself. In a browser there are no files, so only the libraries that travel with the page are available — `dates` is one of them, and anything else says so plainly.
+
+## 17. Order of operations
 
 From loosest to tightest:
 
@@ -878,7 +908,7 @@ show (2 + 3) * 4           # 20
 
 ---
 
-## 17. Where names live
+## 18. Where names live
 
 Two rules cover all of it.
 
@@ -906,9 +936,9 @@ That's why a running total is always created before its loop. The loop's own nam
 
 **Each action is sealed.** It sees its inputs, anything it creates itself, the built-in actions, and other actions — nothing else. See section 10.
 
-Together these give one rule worth remembering: **a name means one thing inside any single action, and one thing at the top level.** You'll almost never meet the error, because it only fires when you typed `set` where you meant `change`, or forgot a name was already in use.
+One rule covers both: **a name means one thing inside any single action, and one thing at the top level.** You'll rarely meet the error. It fires only when you typed `set` where you meant `change`, or forgot a name was already in use.
 
-## 18. Errors
+## 19. Errors
 
 Every error names the line, underlines the exact word, says what went wrong in a sentence, and where possible says what to do about it:
 
@@ -931,6 +961,7 @@ The full set of things Plain will tell you:
 - an `if` or `while` test that isn't true or false, with a suggested comparison
 - an action given the wrong number of values, naming what it expects
 - a block never closed, saying how many `end`s were expected and which one closed what
+- a library that's missing, holds more than actions, clashes, or includes itself
 - text never closed with a second quote mark
 - `=` where `set` or `change` was meant, and `>` or `==` where a word was meant
 - an action reaching for a name outside itself
@@ -943,11 +974,11 @@ Where the fix is unambiguous, the playground offers it as a button.
 
 ---
 
-## 19. The complete word list
+## 20. The complete word list
 
-All 29. There are no others.
+All 30. There are no others.
 
-**Instructions** — `set`, `change`, `to`, `show`, `if`, `else`, `end`, `for`, `each`, `in`, `repeat`, `times`, `while`, `make`, `give`, `stop`
+**Instructions** — `set`, `change`, `to`, `show`, `use`, `if`, `else`, `end`, `for`, `each`, `in`, `repeat`, `times`, `while`, `make`, `give`, `stop`
 
 **Comparing values** — `is`, `not`, `more`, `less`, `than`, `at`, `most`, `least`
 
@@ -955,43 +986,20 @@ All 29. There are no others.
 
 **Values** — `true`, `false`, `nothing`
 
-Six of these (`more`, `less`, `than`, `at`, `most`, `least`) only ever appear as part of a comparison such as `is more than`, so in practice there are 23 words to learn and six that come along with them.
+Six of these (`more`, `less`, `than`, `at`, `most`, `least`) only ever appear as part of a comparison such as `is more than`, so in practice there are 24 words to learn and six that come along with them.
 
 **Symbols** — `+` `-` `*` `/` `%` `(` `)` `[` `]` `{` `}` `,` `.` `:` `"` `#`
 
-## 20. What Plain does not have yet
+## 21. What Plain does not have yet
 
 The edges, so nothing catches you out:
 
-- **No text formatting.** No padding, alignment or fixed decimal places, so a table of numbers comes out ragged.
-- **No error handling.** No `try`/`catch`. An error stops the program.
-- **No modules.** One program is one file; programs can't yet use each other, so there are no libraries.
-- **No dates built in.** `now()` tells you the moment, and `dates.plain` handles the arithmetic, but neither is part of the language proper.
-- **No input.** No way to ask the person a question while running.
-- **No classes.** Records hold values, not actions on those values. This may stay that way deliberately.
-- **No async, threads or timing.** Nothing runs in the background.
+- **No error handling.** There's no `try` or `catch`. An error stops the program.
+- **No dates built in.** `now()` tells you the moment and the `dates` library does the arithmetic, but neither is part of the language itself.
+- **No classes.** Records hold values, not actions on those values. That may stay as it is.
+- **Nothing runs in the background.** No timing, no waiting, no doing two things at once.
 
-### Settled since v0.1
-
-Every rough edge found so far is now closed:
-
-1. **Names vanishing at `end`** — kept, because block scoping is correct, but the error names the block and says what to do instead.
-2. **Mutation** — settled completely. Nothing is changed in place, and every binding takes a copy, so no two names ever share a list or record.
-3. **Suggestions favouring built-ins** — fixed. Your own names are offered first.
-4. **Asymmetric rounding** — fixed. `round(2.5)` is 3 and `round(-2.5)` is -3.
-5. **Runaway recursion** — an action may call itself 300 times, then stops with a message naming it. Nothing internal can leak, even on a device with less room than usual.
-6. **Silent flooring** — `repeat`, list positions and `random` all require whole numbers.
-7. **Fields appearing from a typo** — `change` can no longer invent a field.
-8. **Actions inside actions** — no longer allowed; every action lives at the top level.
-9. **No way to touch the outside world** — `read`, `write` and `get` now exist, confined to statements outside any action.
-
-### Open questions
-
-- **Checking earlier.** Quoted field names are checked when the line runs. A pass over the whole program before running would catch them sooner, along with unknown names and wrong argument counts. Planned for after the kernel.
-- **Text formatting.** The shape of it isn't decided yet — likely a small group of actions rather than one.
-- **Copying cost.** Every binding copies, which is O(n) for a large list. Copy-on-write would remove the cost without changing anything observable, if it ever matters.
-
-## 21. A complete program
+## 22. A complete program
 
 Everything in this document, used once:
 
@@ -1045,7 +1053,7 @@ Note the shape: `set totals to []` before the loop, `change` inside it, and `rev
 
 ---
 
-## 22. Everything, in alphabetical order
+## 23. Everything, in alphabetical order
 
 Every word and every built-in action, with where to read more.
 
@@ -1084,6 +1092,7 @@ Every word and every built-in action, with where to read more.
 | `than` | Part of `is more than` and `is less than` | 8 |
 | `times` | Part of `repeat … times` | 10 |
 | `to` | Part of `set … to` and `change … to` | 4 |
+| `use` | Bring in the actions from another file | 16 |
 | `true` | One of the two things an `if` accepts | 2 |
 | `while` | Keep going until a condition stops holding | 10 |
 

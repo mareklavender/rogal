@@ -165,7 +165,7 @@
   <header class="masthead">
     <p class="eyebrow">Version __VERSION__ · runs entirely in this page</p>
     <h1 class="wordmark">Plain</h1>
-    <p class="standfirst">A small language that is genuinely easy to write. Twenty-nine words, one way to write each thing, and a mistake tells you <em>what to do about it</em> instead of what went wrong inside the machine.</p>
+    <p class="standfirst">A small language that is genuinely easy to write. Thirty words, one way to write each thing, and a mistake tells you <em>what to do about it</em> instead of what went wrong inside the machine.</p>
   </header>
 
   <div class="exercises" id="exercises"></div>
@@ -197,7 +197,7 @@
 
   <section class="reference">
     <h2 class="ref-title">The whole language</h2>
-    <p class="ref-sub">Not a summary — 29 words and 30 built-in actions is everything Plain has. Nothing to install, nothing to import.</p>
+    <p class="ref-sub">Not a summary — 30 words and 30 built-in actions is everything Plain has. Nothing to install, nothing to import.</p>
     <div class="ref-grid">
       <div class="ref-block">
         <h3>Instructions</h3>
@@ -210,6 +210,7 @@
         <div class="ref-row"><code>while test</code><span>Keep going until the test is false.</span></div>
         <div class="ref-row"><code>stop</code><span>Leave the loop early.</span></div>
         <div class="ref-row"><code>make name(a)</code><span>Create an action. <code>give</code> hands a value back.</span></div>
+        <div class="ref-row"><code>use "dates"</code><span>Bring in the actions from another file.</span></div>
       </div>
       <div class="ref-block">
         <h3>Comparing</h3>
@@ -253,10 +254,24 @@
 </script>
 
 <script>
+// Libraries that travel with the page, so "use" works here as well.
+const SHIPPED_LIBRARIES = {
+  dates: "# dates.plain \u2014 working with dates, written in Plain itself.\n#\n# Dates here are text in the form \"2026-08-22\". Written that way they\n# already sort and compare correctly, so this file only adds the parts\n# that need arithmetic: counting days, moving forwards, and naming the day.\n#\n# Nothing in this file reaches outside the program. Paste it above your\n# own code and call the actions. To find today, use now() in your program\n# and pass the date in.\n\nmake is_leap_year(year)\n  if year % 400 is 0\n    give true\n  end\n  if year % 100 is 0\n    give false\n  end\n  give year % 4 is 0\nend\n\nmake days_in_month(year, month)\n  set lengths to [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]\n  if month is 2\n    if is_leap_year(year)\n      give 29\n    end\n    give 28\n  end\n  give lengths[month]\nend\n\nmake date_parts(date)\n  set bits to split(date, \"-\")\n  if count(bits) is not 3\n    give nothing\n  end\n  give {year: number(bits[1]), month: number(bits[2]), day: number(bits[3])}\nend\n\nmake is_date(date)\n  set parts to date_parts(date)\n  if parts is nothing\n    give false\n  end\n  if parts.month is less than 1 or parts.month is more than 12\n    give false\n  end\n  if parts.day is less than 1\n    give false\n  end\n  give parts.day is at most days_in_month(parts.year, parts.month)\nend\n\n# Days since the start of year 1, so two dates can be subtracted.\nmake day_number(date)\n  set parts to date_parts(date)\n  set years to parts.year - 1\n  set total to years * 365 + numbers_below(years, 4) - numbers_below(years, 100) + numbers_below(years, 400)\n\n  set month to 1\n  while month is less than parts.month\n    change total to total + days_in_month(parts.year, month)\n    change month to month + 1\n  end\n\n  give total + parts.day\nend\n\nmake numbers_below(n, step)\n  give round((n - (n % step)) / step)\nend\n\nmake days_between(first, second)\n  give day_number(second) - day_number(first)\nend\n\nmake add_days(date, howMany)\n  set parts to date_parts(date)\n  set year to parts.year\n  set month to parts.month\n  set day to parts.day + howMany\n\n  while day is more than days_in_month(year, month)\n    change day to day - days_in_month(year, month)\n    change month to month + 1\n    if month is more than 12\n      change month to 1\n      change year to year + 1\n    end\n  end\n\n  while day is less than 1\n    change month to month - 1\n    if month is less than 1\n      change month to 12\n      change year to year - 1\n    end\n    change day to day + days_in_month(year, month)\n  end\n\n  give text(year) + \"-\" + two_digits(month) + \"-\" + two_digits(day)\nend\n\nmake two_digits(n)\n  if n is less than 10\n    give \"0\" + n\n  end\n  give text(n)\nend\n\nmake weekday(date)\n  set names to [\"Monday\", \"Tuesday\", \"Wednesday\", \"Thursday\", \"Friday\", \"Saturday\", \"Sunday\"]\n  give names[(day_number(date) - 1) % 7 + 1]\nend\n\nmake month_name(date)\n  set names to [\"January\", \"February\", \"March\", \"April\", \"May\", \"June\",\n                \"July\", \"August\", \"September\", \"October\", \"November\", \"December\"]\n  give names[date_parts(date).month]\nend\n\n# \"2026-08-22\" becomes \"22 August 2026\"\nmake long_date(date)\n  set parts to date_parts(date)\n  give parts.day + \" \" + month_name(date) + \" \" + parts.year\nend\n",
+};
+
 /* The browser has no file system, so "read" asks the person for a file and
    "write" hands one back. Everything else behaves exactly as it does on a
    computer, so a program written here still runs there.                  */
 const browserHost = {
+  async library(name, node) {
+    if (name in SHIPPED_LIBRARIES) return SHIPPED_LIBRARIES[name];
+    const known = Object.keys(SHIPPED_LIBRARIES);
+    throw plainly(`There's no library called "${name}" in this page.`, node,
+      known.length
+        ? `This page has: ${known.join(", ")}. On your computer, "use" also finds files next to your program.`
+        : `On your computer, "use" finds files next to your program.`);
+  },
+
   async read(name, node) {
     return await new Promise((resolve, reject) => {
       const input = document.createElement("input");

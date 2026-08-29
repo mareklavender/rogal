@@ -1,4 +1,4 @@
-const PLAIN_VERSION = "0.6.2";
+const PLAIN_VERSION = "0.7.0";
 
 /* ============================================================
    Plain — core language
@@ -8,7 +8,7 @@ const PLAIN_VERSION = "0.6.2";
 const MAX_DEPTH = 300;
 
 const KEYWORDS = new Set([
-  "set","change","to","show","if","else","end","for","each","in","repeat","times",
+  "set","change","to","show","use","if","else","end","for","each","in","repeat","times",
   "while","make","give","is","not","and","or","true","false","nothing",
   "more","less","than","at","most","least","stop"
 ]);
@@ -180,6 +180,7 @@ class Parser {
 
     if (t.type === "keyword") {
       switch (t.text) {
+        case "use": return this.parseUse();
         case "set": return this.parseAssign("set");
         case "change": return this.parseAssign("change");
         case "show": return this.parseShow();
@@ -262,6 +263,20 @@ class Parser {
     if (value.kind === "call") value.wholeStatement = true;
     this.endOfStatement();
     return { kind: word, target, value, tok: kw, nameTok };
+  }
+
+  parseUse() {
+    const kw = this.next();
+    if (this.blockDepth > 0)
+      throw new PlainError(`"use" belongs at the top of a program, not inside a block.`, kw,
+        { hint: `Put every "use" line above the rest of your code.` });
+    const nameTok = this.peek();
+    if (nameTok.type !== "text")
+      throw new PlainError(`After "use" I need the name of a file in quotes.`, nameTok,
+        { hint: `For example: use "dates"` });
+    this.next();
+    this.endOfStatement();
+    return { kind: "use", name: nameTok.value, nameTok, tok: kw };
   }
 
   parseShow() {
@@ -866,6 +881,7 @@ class Interpreter {
         return;
       }
       case "give": throw new GiveSignal(node.value ? await this.eval(node.value, scope) : null);
+      case "use": return;                       // already gathered before the run
       case "stop": throw new StopSignal();
       case "expression-statement": await this.eval(node.expr, scope); return;
       default: throw new PlainError("I don't know how to run this line.", node.tok);
@@ -1576,6 +1592,44 @@ function installAbsentKernel(scope, why) {
 
 /* ---------- entry point ---------- */
 
+// Follows every "use" line, parses what it finds, and hands back the actions
+// those files define. Runs before the program does, so a missing library or a
+// clashing name is reported before a single line executes.
+async function gatherLibraries(program, host, seen, chain) {
+  const collected = [];
+  for (const st of program.body) {
+    if (st.kind !== "use") continue;
+    const name = st.name;
+
+    if (chain.includes(name))
+      throw new PlainError(`"${name}" ends up using itself.`, st.nameTok,
+        { hint: `The chain was: ${chain.concat(name).join(" → ")}. A library can't depend on itself, directly or in a circle.` });
+    if (seen.has(name)) continue;
+    seen.add(name);
+
+    if (!host || typeof host.library !== "function")
+      throw new PlainError(`"use" needs somewhere to find "${name}", and there isn't one here.`, st.nameTok,
+        { hint: `Run Plain on your computer, where it can look for ${name}.plain next to your program.` });
+
+    const text = await host.library(name, st);
+    let inner;
+    try { inner = new Parser(tokenise(text)).parseProgram(); }
+    catch (e) {
+      if (e && e.plain) e.message = `In "${name}.plain", line ${e.line}: ${e.message}`;
+      throw e;
+    }
+    const nested = await gatherLibraries(inner, host, seen, chain.concat(name));
+    collected.push(...nested);
+    for (const s2 of inner.body) {
+      if (s2.kind === "make") collected.push({ from: name, node: s2 });
+      else if (s2.kind !== "use")
+        throw new PlainError(`"${name}.plain" has a line that isn't an action.`, st.nameTok,
+          { hint: `A library holds only "make" blocks and its own "use" lines. Line ${s2.tok ? s2.tok.line : "?"} of ${name}.plain is something else.` });
+    }
+  }
+  return collected;
+}
+
 async function run(source, host) {
   const output = [];
   try {
@@ -1584,6 +1638,15 @@ async function run(source, host) {
       output.push(line);
       if (output.length > 2000) throw new PlainError("This program showed more than 2000 lines, so I stopped it.", null);
     });
+    const libraries = await gatherLibraries(program, host, new Set(), []);
+    for (const { from, node } of libraries) {
+      if (interp.globals.vars.has(node.name))
+        throw new PlainError(`Two actions are called "${node.name}".`, node.nameTok,
+          { hint: `One comes from ${from}.plain. Rename one of them.` });
+      interp.globals.define(node.name,
+        { __action: true, name: node.name, params: node.params, body: node.body });
+    }
+
     if (host) installKernel(interp.builtins, host);
     else installAbsentKernel(interp.builtins,
       "Plain is running somewhere with no files and no network. Run it on your computer, or in the playground use the version that can ask you for a file.");

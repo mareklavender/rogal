@@ -23,6 +23,16 @@ const near = name => path.resolve(path.dirname(path.resolve(file)), name);
 // Anything the host throws is turned into a sentence; the interpreter
 // wraps it with the line and the caret.
 const host = {
+  async library(name, node) {
+    const beside = near(name + ".plain");
+    const shipped = path.join(__dirname, name + ".plain");
+    for (const candidate of [beside, shipped]) {
+      if (fs.existsSync(candidate)) return fs.readFileSync(candidate, "utf8");
+    }
+    throw plainly(`I couldn't find "${name}.plain".`, node,
+      `Put it next to your program, or next to Plain itself.`);
+  },
+
   async read(name, node) {
     const full = near(name);
     if (!fs.existsSync(full)) throw plainly(`There's no file called "${name}" next to this program.`, node,
