@@ -9,7 +9,12 @@ const { run, PLAIN_VERSION, makeRecord, momentRecord } = require("./plain-core.j
 const file = process.argv[2];
 
 if (!file || file === "--help" || file === "-h") {
-  console.log(`Plain v${PLAIN_VERSION}\n\n  node plain.js <file>\n\nRuns a Plain program. Files are read and written relative to\nthe folder the program is in.`);
+  // "node plain.js" when running from source, just "plain" when compiled
+  const compiled = typeof Bun !== "undefined" && String(process.argv[1] || "").includes("$bunfs");
+  const calledAs = compiled
+    ? "./" + path.basename(process.execPath)
+    : "node " + path.basename(process.argv[1] || "plain.js");
+  console.log(`Plain v${PLAIN_VERSION}\n\n  ${calledAs} <file>\n\nRuns a Plain program. Files are read and written next to the\nprogram, not next to wherever you happen to be.`);
   process.exit(file ? 0 : 1);
 }
 

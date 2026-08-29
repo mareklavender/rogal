@@ -1,4 +1,4 @@
-const PLAIN_VERSION = "0.7.0";
+const PLAIN_VERSION = "0.7.1";
 
 /* ============================================================
    Plain — core language

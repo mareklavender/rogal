@@ -1,10 +1,38 @@
 # Plain — Language Reference
 
-**Version 0.7** · Complete. Every word the language has is in this document.
+**Version 0.7.1** · Complete. Every word the language has is in this document.
 
-Plain has 30 words and 30 built-in actions. That's the whole language — nothing to install and nothing to import.
+Plain has 30 words and 32 actions — 27 built in, and 5 that reach outside the program. That's the whole language: nothing to install and nothing to import.
 
 ---
+
+## Running a program
+
+Two ways, depending on what you're doing.
+
+### In a browser
+
+Open `plain.html`. Nothing to install, and the examples and a short reference are built into the page. This is the whole of Plain apart from reading files automatically — `read` asks you to pick one instead, and `write` hands one back as a download.
+
+### On your computer
+
+For programs that read and write files by name, you'll need [Node.js](https://nodejs.org) installed. Put `plain-core.js` and `plain.js` in a folder together, write your program beside them, and run it:
+
+```
+node plain.js myprogram.plain
+```
+
+This is the only way to have a program open a file it names for itself, rather than one you pick.
+
+### Where it looks for things
+
+Files are read and written **next to your program**, not next to wherever your terminal happens to be. So a program in `~/work` reading `stock.csv` looks in `~/work`, whichever folder you ran it from.
+
+`use "dates"` looks for `dates.plain` next to your program first, then next to Plain itself — so a library you use everywhere can sit beside `plain.js` instead of being copied about.
+
+### Which to use
+
+The browser is the whole language and needs nothing at all, so start there and stay there unless a program needs to open files without being asked each time. That's the one thing it can't do, and the only reason to move to a terminal.
 
 ## 1. The shape of a program
 
@@ -159,7 +187,7 @@ set count to 3
 
 Names start with a letter or `_` and may contain letters, digits and `_`. They are case-sensitive.
 
-The 30 built-in action names are taken, so `set count to 0` won't work — `count` is already something. The error says which name clashed. Section 14 has the full list; `total`, `tally` and `how_many` are all free.
+All 32 action names are taken, so `set count to 0` won't work — `count` is already something. The error says which name clashed. Section 23 lists every one of them; `total`, `tally` and `how_many` are all free.
 
 `change` also reaches inside lists and records:
 
@@ -623,7 +651,7 @@ change person.age to 36
 
 ---
 
-## 14. The 30 built-in actions
+## 14. The 27 built-in actions
 
 Always available. Nothing to import. **None of them ever changes what you give them** — they hand back a new value, so the original is untouched.
 
