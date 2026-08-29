@@ -1,4 +1,4 @@
-const PLAIN_VERSION = "0.6.1";
+const PLAIN_VERSION = "0.6.2";
 
 /* ============================================================
    Plain — core language
@@ -102,7 +102,7 @@ function tokenise(src) {
 /* ---------- parser ---------- */
 
 class Parser {
-  constructor(toks) { this.toks = toks; this.pos = 0; this.blockDepth = 0; }
+  constructor(toks) { this.toks = toks; this.pos = 0; this.blockDepth = 0; this.blockLog = []; }
 
   peek(o = 0) { return this.toks[Math.min(this.pos + o, this.toks.length - 1)]; }
   next() { return this.toks[this.pos++]; }
@@ -147,17 +147,31 @@ class Parser {
   parseBlock(closers, opener) {
     const body = [];
     this.blockDepth++;
+    const entry = { opener, closedOn: null };
+    this.blockLog.push(entry);
     this.skipBlank();
     while (true) {
       const t = this.peek();
-      if (t.type === "end-of-file")
-        throw new PlainError(`This "${opener.text}" was never closed.`, opener,
-          { hint: `Add "end" on its own line to close the "${opener.text}" that starts on line ${opener.line}.` });
+      if (t.type === "end-of-file") {
+        // Say which "end" closed what, so a missing one in a nest is findable.
+        const opened = this.blockLog.length;
+        const closed = this.blockLog.filter(b => b.closedOn !== null).length;
+        const lastClosed = [...this.blockLog].reverse().find(b => b.closedOn !== null);
+        let hint = `Add "end" on its own line to close the "${opener.text}" that starts on line ${opener.line}.`;
+        if (opened > 1) {
+          hint = `${opened} blocks were opened and only ${closed} "end"${closed === 1 ? " was" : "s were"} found.`;
+          if (lastClosed)
+            hint += ` The "end" on line ${lastClosed.closedOn} closed the "${lastClosed.opener.text}" from line ${lastClosed.opener.line}.`;
+          hint += ` Every "make", "if", "for", "while" and "repeat" needs one of its own.`;
+        }
+        throw new PlainError(`This "${opener.text}" from line ${opener.line} was never closed.`, opener, { hint });
+      }
       if (t.type === "keyword" && closers.includes(t.text)) break;
       body.push(this.parseStatement());
       this.skipBlank();
     }
     this.blockDepth--;
+    entry.closedOn = this.peek().line;
     return { kind: "block", body };
   }
 

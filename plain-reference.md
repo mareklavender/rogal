@@ -1,6 +1,6 @@
 # Plain — Language Reference
 
-**Version 0.6.1** · Complete. Every word the language has is in this document.
+**Version 0.6.2** · Complete. Every word the language has is in this document.
 
 Plain has 29 words and 30 built-in actions. That's the whole language — nothing to install and nothing to import.
 
@@ -28,6 +28,52 @@ set total to 0
 ```
 
 ---
+
+### What `end` actually means
+
+`end` doesn't mean "the program stops here". It means **this block stops here** — and moving one changes what a program does.
+
+```plain
+for each word in words
+  if count(word) is more than 3
+    change best to word
+    show "found a long one"
+  end
+end
+```
+
+```plain
+for each word in words
+  if count(word) is more than 3
+    change best to word
+  end
+end
+show "finished"
+```
+
+The first prints a line for every long word. The second prints one line, once, after the loop has finished. Nothing else differs — only where the `end`s sit.
+
+Since Plain ignores indentation, `end` is the only thing marking where a block stops. That's why `else` and `end` each need a line of their own: so the shape you see is the shape that runs.
+
+**One `end` for every opener** — every `make`, `if`, `for each`, `while` and `repeat`. Ten simple actions need ten `end`s, one each. What multiplies them is nesting, not quantity:
+
+```plain
+make longest(words)                            ← opens
+  set best to ""
+  for each word in words                       ← opens
+    if count(word) is more than count(best)    ← opens
+      change best to word
+    end                                        ← closes the if
+  end                                          ← closes the for each
+  give upper(best)
+end                                            ← closes the make
+```
+
+Three `end`s because three things sit inside one another. Read them from the bottom up and they pair with the openers above, innermost first — the same as brackets in arithmetic.
+
+If a program ever needs four or five levels, that's usually a sign it wants splitting into separate actions. The pile of `end`s is a useful warning rather than a nuisance.
+
+Leave one out and Plain says how many blocks were opened, how many `end`s it found, and which block the last one closed.
 
 ## 2. The six kinds of value
 
@@ -884,7 +930,7 @@ The full set of things Plain will tell you:
 - arithmetic on the wrong kind of value, naming both sides
 - an `if` or `while` test that isn't true or false, with a suggested comparison
 - an action given the wrong number of values, naming what it expects
-- a block never closed, pointing at the line where it opened
+- a block never closed, saying how many `end`s were expected and which one closed what
 - text never closed with a second quote mark
 - `=` where `set` or `change` was meant, and `>` or `==` where a word was meant
 - an action reaching for a name outside itself
