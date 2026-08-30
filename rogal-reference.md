@@ -1,6 +1,6 @@
 # Rogal — Language Reference
 
-**Version 0.8** · Complete. Every word the language has is in this document.
+**Version 0.9** · Complete. Every word the language has is in this document.
 
 Rogal has 30 words and 32 actions — 27 built in, and 5 that reach outside the program. That's the whole language: nothing to install and nothing to import.
 
@@ -12,7 +12,13 @@ Two ways, depending on what you're doing.
 
 ### In a browser
 
-Open `rogal.html`. Nothing to install, and the examples and a short reference are built into the page. This is the whole of Rogal apart from reading files automatically — `read` asks you to pick one instead, and `write` hands one back as a download.
+Open `rogal.html`. Nothing to install, and the examples and a short reference are built into the page.
+
+Write a program and press **Run**, or Ctrl + Enter. **Save** downloads it as a `.rogal` file, using whatever name is in the box beside the button; **Open** loads one back in. The **blank** chip clears the editor to start from nothing. If you'd lose unsaved work, you're asked first.
+
+A saved file runs unchanged on your computer, so the browser is a reasonable place to write something and the terminal a reasonable place to run it. One thing to remember: a program using `use "dates"` needs `dates.rogal` sitting beside it, since the browser copy travels with the page and the saved file doesn't.
+
+This is the whole of Rogal apart from opening files by name — `read` asks you to pick one instead, and `write` hands one back as a download.
 
 ### On your computer
 
@@ -880,7 +886,7 @@ Every action you write is then free of surprises: same inputs, same result, no f
 
 `read` only reads text — `.txt`, `.csv`, `.json` and the like. Hand it a PDF, an image or a spreadsheet and it says so rather than giving back a page of nonsense.
 
-### In a browser
+### What these five do in a browser
 
 A web page has no file system, so `read` **asks you to pick a file** and `write` **hands one back as a download**. `ask` is a prompt box. The program is the same either way — you just pick the file instead of naming it. `get` works, but only for sites that permit it — a limit of web pages, not of Rogal.
 
@@ -1083,7 +1089,7 @@ Note the shape: `set totals to []` before the loop, `change` inside it, and `rev
 
 ## 23. Everything, in alphabetical order
 
-Every word and every built-in action, with where to read more.
+Every word and every action, with where to read more. Words shape a program; actions do something and hand back a value.
 
 ### Words
 
@@ -1131,22 +1137,18 @@ Every word and every built-in action, with where to read more.
 | `add(list, item)` | A new list with one more item on the end | 14 |
 | `align_left(value, width)` | Padded with spaces on the right | 14 |
 | `align_right(value, width)` | Padded with spaces on the left | 14 |
-| `ask(question)` | Ask the person something. Always gives text | 15 |
 | `count(thing)` | How many items, letters or entries | 14 |
 | `decimals(number, places)` | A number as text, with exactly that many decimals | 14 |
 | `find(text, part)` | Where something starts, or `nothing` | 14 |
 | `first(list)` | The first item | 14 |
-| `get(address)` | Fetch a web address, as text | 15 |
 | `has(thing, item)` | Whether it's in there. True or false | 14 |
 | `join(list, separator)` | One list into one piece of text | 14 |
 | `keys(record)` | A list of a record's names | 14 |
 | `last(list)` | The last item | 14 |
 | `lower(text)` | Text in lower case | 14 |
-| `now()` | A record describing this moment | 15 |
 | `number(text)` | Text into a number. Fails if it isn't one | 14 |
 | `numbers(from, to)` | A list counting from one to the other | 14 |
 | `random(low, high)` | A whole number between the two, either end possible | 14 |
-| `read(name)` | Read a text file | 15 |
 | `remove(list, position)` | A new list without that item | 14 |
 | `replace(text, old, new)` | Every `old` swapped for `new` | 14 |
 | `reverse(list)` | It, back to front. Works on text too | 14 |
@@ -1162,6 +1164,15 @@ Every word and every built-in action, with where to read more.
 | `text(value)` | Anything, as text | 14 |
 | `trim(text)` | Text without spaces at either end | 14 |
 | `upper(text)` | Text in capitals | 14 |
-| `write(name, text)` | Write a text file | 15 |
 
-The five in section 15 reach outside the program. Each needs a line of its own and none can be used inside an action.
+### Actions that reach outside the program
+
+These five are different in kind. Each needs a line of its own, and none can be used inside an action — so everything you write yourself stays free of surprises.
+
+| Action | What it does | Section |
+|---|---|---|
+| `ask(question)` | Ask the person something. Always gives text | 15 |
+| `get(address)` | Fetch a web address, as text | 15 |
+| `now()` | A record describing this moment | 15 |
+| `read(name)` | Read a text file | 15 |
+| `write(name, text)` | Write a text file | 15 |

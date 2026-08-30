@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.0
+
+- The playground can save and open files. There's a filename field, a **Save** button that downloads what you've written, and an **Open** button that loads a `.rogal` file back in. Ctrl+S and Ctrl+O work too.
+- A **blank** chip for starting from nothing.
+- Loading an example, starting blank or opening a file now asks first if you'd lose unsaved work.
+- The README is for people using Rogal; working on the language itself moved to `CONTRIBUTING.md`.
+- Counted the actions again: 30 words and 32 actions, of which 27 are built in and 5 reach outside the program.
+
 ## 0.8.0
 
 - Renamed from Plain to Rogal. Files are now `.rogal`, the library is `dates.rogal`, and the playground is `rogal.html`. Nothing about the language changed.

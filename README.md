@@ -2,7 +2,7 @@
 
 A small programming language that's genuinely easy to write, where a mistake tells you what to do about it instead of what went wrong inside the machine.
 
-30 words. One way to write each thing. Blocks close with `end`, so indentation can never break a program. Comparisons are words, so `=` and `==` can't be muddled. And when something goes wrong you get the line, the word underlined, a sentence explaining it, and often a button that fixes it.
+30 words and 32 actions. One way to write each thing. Blocks close with `end`, so indentation can never break a program. Comparisons are words, so `=` and `==` can't be muddled. And when something goes wrong you get the line, the word underlined, a sentence explaining it, and often a button that fixes it.
 
 ```rogal
 set prices to [12.4, 8.9, 31.2]
@@ -21,15 +21,15 @@ Average: 17.5
 
 Small enough to hold in your head, and solid enough to write real scripts in. That makes it a good first language, and a reasonable one to stay with.
 
-**Status:** working prototype, v0.8.0. **The name is a placeholder** — it hasn't been decided, and the repo will be renamed when it is.
+**Status:** working prototype, v0.9.0.
 
 ---
 
 ## Trying it
 
-Open **`rogal.html`** in a browser. That's it — nothing to install, and the playground has examples and a reference built in.
+**You need one file: `rogal.html`.** Open it in a browser and that's the whole language — examples, a reference panel, and somewhere to write. Nothing to install.
 
-Better still, put it on the web and use a link. See *Sharing it* below.
+Better still, put it on the web and send a link. See *Sharing it* below.
 
 ## Running programs against real files
 
@@ -40,39 +40,6 @@ node rogal.js myscript.rogal
 ```
 
 Files are read and written next to the script, not next to wherever your terminal happens to be.
-
-## Working on the language
-
-| File | What it is |
-|---|---|
-| [`rogal-core.js`](rogal-core.js) | The language itself — tokeniser, parser, interpreter. Edit this. |
-| [`rogal-ui.html`](rogal-ui.html) | The playground page. Edit this. |
-| [`rogal-reference.md`](rogal-reference.md) | The reference. Edit this. |
-| [`build.js`](build.js) | Squashes the first two into `rogal.html`. |
-| [`make-pdf.py`](make-pdf.py) | Turns the reference into a PDF. Needs pandoc, wkhtmltopdf, reportlab, pypdf. |
-| [`test.js`](test.js) | 140 checks, including the kernel against a stand-in host. |
-| [`CHANGELOG.md`](CHANGELOG.md) | What changed in each version. |
-| [`.gitignore`](.gitignore) | Keeps `.DS_Store` and build output out of the repository. |
-| [`rogal.js`](rogal.js) | The command-line runner. |
-| [`dates.rogal`](dates.rogal) | A date library, written in Rogal. Bring it in with `use "dates"`. |
-| `rogal.html` | **Generated.** The one file to share. Don't edit it. |
-
-Three sources, one thing to hand out. The split means a change to the language shows up as a few lines in the history, rather than a whole rewritten page.
-
-```
-node test.js      # check nothing broke
-node build.js     # make rogal.html
-```
-
-Run the tests first, always. They catch the mistakes that are easy to make and hard to spot — a helpful error that quietly stops firing, a built-in that starts modifying what you gave it.
-
-The version lives in one place, the top of `rogal-core.js`:
-
-```js
-const ROGAL_VERSION = "0.8.0";
-```
-
-The build stamps it into the page, so the two can't drift apart. Bump it whenever the language changes.
 
 ## Sharing it
 
@@ -101,3 +68,5 @@ The reasoning behind these is in the [reference](rogal-reference.md), also avail
 - **Lists count from 1**, the way people do.
 - **Reaching outside is visible.** `read`, `write`, `get`, `ask` and `now` each need a line of their own and can't be used inside an action.
 - **A library holds only actions.** Nothing runs behind your back when you bring one in.
+
+Working on the language itself is covered in [CONTRIBUTING.md](CONTRIBUTING.md).

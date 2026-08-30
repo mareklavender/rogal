@@ -1,4 +1,4 @@
-const ROGAL_VERSION = "0.8.0";
+const ROGAL_VERSION = "0.9.0";
 
 /* ============================================================
    Rogal — core language

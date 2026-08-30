@@ -99,6 +99,26 @@
   .run:hover{background:#3B2B7A}
   .run:disabled{background:var(--ditto-soft);cursor:default}
   .kbd{font-family:var(--mono);font-size:11px;color:var(--ditto-soft)}
+  .spacer{flex:1}
+  .filename{display:inline-flex;align-items:center}
+  .filename input{
+    font-family:var(--mono);font-size:12.5px;color:var(--ink);
+    background:#fff;border:1px solid var(--rule);border-radius:2px;
+    padding:7px 9px;width:15ch;
+  }
+  .filename input:focus{outline:2px solid var(--ditto);outline-offset:1px}
+  .quiet{
+    font-family:var(--mono);font-size:12.5px;letter-spacing:.02em;
+    background:#fff;border:1px solid var(--rule);color:var(--ditto);
+    padding:8px 13px;border-radius:2px;cursor:pointer
+  }
+  .quiet:hover{background:var(--paper-deep)}
+  .chip.blank{border-style:dashed}
+  @media(max-width:560px){
+    .controls{flex-wrap:wrap}
+    .spacer{flex-basis:100%;height:0}
+    .filename input{width:11ch}
+  }
 
   /* ---- output ---- */
   .out{
@@ -163,7 +183,7 @@
 <div class="wrap">
 
   <header class="masthead">
-    <p class="eyebrow">Version 0.8.0 · runs entirely in this page</p>
+    <p class="eyebrow">Version 0.9.0 · runs entirely in this page</p>
     <h1 class="wordmark">Rogal</h1>
     <p class="standfirst">A small language that is genuinely easy to write. Thirty words, one way to write each thing, and a mistake tells you <em>what to do about it</em> instead of what went wrong inside the machine.</p>
   </header>
@@ -183,6 +203,14 @@
       <div class="controls">
         <button class="run" id="run">Run the program</button>
         <span class="kbd">or Ctrl + Enter</span>
+        <span class="spacer"></span>
+        <label class="filename" for="filename">
+          <input id="filename" type="text" value="program.rogal" spellcheck="false"
+                 aria-label="File name" size="16">
+        </label>
+        <button class="quiet" id="open">Open</button>
+        <button class="quiet" id="save">Save</button>
+        <input id="filepicker" type="file" accept=".rogal,.txt,text/plain" hidden>
       </div>
     </section>
 
@@ -250,7 +278,7 @@
 </div>
 
 <script>
-const ROGAL_VERSION = "0.8.0";
+const ROGAL_VERSION = "0.9.0";
 
 /* ============================================================
    Rogal — core language
@@ -2215,19 +2243,114 @@ EXAMPLES.forEach((ex, i) => {
   chipsEl.appendChild(b);
 });
 
+const blankChip = document.createElement("button");
+blankChip.className = "chip blank";
+blankChip.textContent = "blank";
+blankChip.setAttribute("aria-pressed", "false");
+blankChip.addEventListener("click", startBlank);
+chipsEl.appendChild(blankChip);
+
 function goEl_disable(on) {
   const b = document.getElementById("run");
   b.disabled = on;
   b.textContent = on ? "Running…" : "Run the program";
 }
 
+// What the editor held when it was last loaded or saved. Anything else
+// means there's work that would be lost, and we ask before losing it.
+let lastKept = EXAMPLES[0].code;
+
+const nameEl = document.getElementById("filename");
+const pickerEl = document.getElementById("filepicker");
+
+function hasUnkeptWork() {
+  return codeEl.value.trim() !== "" && codeEl.value !== lastKept;
+}
+
+function mayDiscard(what) {
+  if (!hasUnkeptWork()) return true;
+  return window.confirm(
+    `You've changed this program since it was last saved.\n\n` +
+    `${what} will replace it, and there's no undo. Save it first if you want to keep it.`
+  );
+}
+
+function markChips(which) {
+  [...chipsEl.children].forEach(c => c.setAttribute("aria-pressed", "false"));
+  if (which >= 0 && chipsEl.children[which]) chipsEl.children[which].setAttribute("aria-pressed", "true");
+}
+
 function load(i) {
+  if (!mayDiscard("Loading an example")) return;
   current = i;
-  [...chipsEl.children].forEach((c, j) => c.setAttribute("aria-pressed", j === i ? "true" : "false"));
+  markChips(i);
   codeEl.value = EXAMPLES[i].code;
+  lastKept = codeEl.value;
+  nameEl.value = EXAMPLES[i].name.replace(/[^a-z0-9]+/gi, "-").toLowerCase() + ".rogal";
   refresh();
   if (!EXAMPLES[i].manual) execute();
 }
+
+function startBlank() {
+  if (!mayDiscard("Starting a blank program")) return;
+  current = -1;
+  markChips(EXAMPLES.length);
+  codeEl.value = "";
+  lastKept = "";
+  nameEl.value = "program.rogal";
+  refresh();
+  outEl.innerHTML = `<div class="out-inner"><p class="empty">Write something and press Run.</p></div>`;
+  statusEl.textContent = "";
+  codeEl.focus();
+}
+
+function tidyName() {
+  let name = nameEl.value.trim().replace(/[\\/:*?"<>|]/g, "");
+  if (name === "") name = "program";
+  if (!/\.rogal$/i.test(name)) name = name.replace(/\.[^.]*$/, "") + ".rogal";
+  nameEl.value = name;
+  return name;
+}
+
+function saveProgram() {
+  const name = tidyName();
+  const blob = new Blob([codeEl.value], { type: "text/plain;charset=utf-8" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  setTimeout(() => { URL.revokeObjectURL(link.href); link.remove(); }, 1000);
+  lastKept = codeEl.value;
+  statusEl.textContent = "saved as " + name;
+}
+
+function openProgram() {
+  if (!mayDiscard("Opening a file")) return;
+  pickerEl.value = "";
+  pickerEl.click();
+}
+
+pickerEl.addEventListener("change", () => {
+  const file = pickerEl.files && pickerEl.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    codeEl.value = String(reader.result);
+    lastKept = codeEl.value;
+    nameEl.value = file.name;
+    current = -1;
+    markChips(-1);
+    refresh();
+    execute();
+  };
+  reader.onerror = () => { statusEl.textContent = "couldn't read that file"; };
+  reader.readAsText(file);
+});
+
+document.getElementById("save").addEventListener("click", saveProgram);
+document.getElementById("open").addEventListener("click", openProgram);
+nameEl.addEventListener("blur", tidyName);
 
 function refresh(flagLine) {
   const lines = codeEl.value.split("\n").length;
@@ -2324,6 +2447,8 @@ codeEl.addEventListener("keydown", e => {
     refresh();
   }
   if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); execute(); }
+  if (e.key.toLowerCase() === "s" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); saveProgram(); }
+  if (e.key.toLowerCase() === "o" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); openProgram(); }
 });
 document.getElementById("run").addEventListener("click", execute);
 
