@@ -1,7 +1,7 @@
 /* Checks the language still behaves as intended.
    Run with:  node test.js                                          */
 
-const { run, PLAIN_VERSION } = require("./plain-core.js");
+const { run, ROGAL_VERSION } = require("./rogal-core.js");
 
 let passed = 0;
 const failures = [];
@@ -263,13 +263,13 @@ fails("endless loop is stopped", `while true\n  set x to 1\nend`, "stopped it");
    These matter: without them, an action the kernel offers but no host
    provides slips through unnoticed until someone runs into it.          */
 
-const { makeRecord, momentRecord } = require("./plain-core.js");
+const { makeRecord, momentRecord } = require("./rogal-core.js");
 
 const testHost = {
   files: { "stock.csv": "apples,10\nbananas,4\n" },
   written: {},
   async read(name, node) {
-    if (!(name in this.files)) { const e = new Error(`no file "${name}"`); e.plain = true; e.line = 1; e.col = 1; e.len = 1; throw e; }
+    if (!(name in this.files)) { const e = new Error(`no file "${name}"`); e.rogal = true; e.line = 1; e.col = 1; e.len = 1; throw e; }
     return this.files[name];
   },
   async write(name, text) { this.written[name] = text; return text.length; },
@@ -315,7 +315,7 @@ const libraryHost = Object.assign({}, testHost, {
   },
   async library(name, node) {
     if (name in this.shelf) return this.shelf[name];
-    const e = new Error(`no library "${name}"`); e.plain = true; e.line = 1; e.col = 1; e.len = 1;
+    const e = new Error(`no library "${name}"`); e.rogal = true; e.line = 1; e.col = 1; e.len = 1;
     throw e;
   },
 });
@@ -361,7 +361,7 @@ queue.push(async () => {
 (async () => {
   for (const check of queue) await check();
 
-  console.log(`\nPlain v${PLAIN_VERSION}`);
+  console.log(`\nRogal v${ROGAL_VERSION}`);
   if (failures.length === 0) {
     console.log(`All ${passed} checks passed.\n`);
     process.exit(0);

@@ -1,9 +1,13 @@
 # Changelog
 
+## 0.8.0
+
+- Renamed from Plain to Rogal. Files are now `.rogal`, the library is `dates.rogal`, and the playground is `rogal.html`. Nothing about the language changed.
+
 ## 0.7.1
 
 - The reference opens with how to run a program — in a browser or with Node — and where files and libraries are looked for.
-- The help text names how you actually started it, rather than always saying `node plain.js`.
+- The help text names how you actually started it, rather than always saying `node rogal.js`.
 - A full proofread. Among other things, the kernel section still said "three actions" when there are five.
 
 ## 0.7.0
@@ -20,7 +24,7 @@
 ## 0.6.1
 
 - `ask` worked in the kernel but neither the browser nor the command line implemented it. Both do now.
-- Starting Plain without all five kernel actions fails immediately with a clear message, rather than letting an internal error escape mid-program.
+- Starting Rogal without all five kernel actions fails immediately with a clear message, rather than letting an internal error escape mid-program.
 - Seven new checks run the kernel against a stand-in host, so a gap like that can't go unnoticed again.
 - The reference lists all nine fields `now()` gives back, and says plainly that `day` counts while `weekday` names.
 - Fixed a race on the command line where piped input could close before an answer arrived.
@@ -31,7 +35,7 @@
 - `replace(text, old, new)` and `find(text, part)`.
 - `align_left`, `align_right` and `decimals` for laying out tables. `decimals(1.5, 2)` gives `"1.50"`, which `round` can't, since numbers drop trailing zeros.
 - `now()` — a fifth kernel action, giving a record with the date, time and weekday.
-- `dates.plain` — leap years, days between dates, adding days, weekday names. Written in Plain itself.
+- `dates.rogal` — leap years, days between dates, adding days, weekday names. Written in Rogal itself.
 
 ## 0.5.0
 
@@ -46,7 +50,7 @@
 
 - The evaluator became internally asynchronous, at a measured cost of 1.54x. Nothing changed from the outside.
 - A kernel: `read`, `write` and `get`. Each needs a line of its own and none can be used inside an action.
-- `plain.js`, a command-line runner.
+- `rogal.js`, a command-line runner.
 - In a browser, `read` asks you to pick a file and `write` hands one back as a download.
 
 ## 0.3.0

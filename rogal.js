@@ -1,20 +1,20 @@
 #!/usr/bin/env node
-/* Runs a Plain program from the command line, with files and the network.
-   Usage:  node plain.js script.plain                                     */
+/* Runs a Rogal program from the command line, with files and the network.
+   Usage:  node rogal.js script.rogal                                     */
 
 const fs = require("fs");
 const path = require("path");
-const { run, PLAIN_VERSION, makeRecord, momentRecord } = require("./plain-core.js");
+const { run, ROGAL_VERSION, makeRecord, momentRecord } = require("./rogal-core.js");
 
 const file = process.argv[2];
 
 if (!file || file === "--help" || file === "-h") {
-  // "node plain.js" when running from source, just "plain" when compiled
+  // "node rogal.js" when running from source, just "plain" when compiled
   const compiled = typeof Bun !== "undefined" && String(process.argv[1] || "").includes("$bunfs");
   const calledAs = compiled
     ? "./" + path.basename(process.execPath)
-    : "node " + path.basename(process.argv[1] || "plain.js");
-  console.log(`Plain v${PLAIN_VERSION}\n\n  ${calledAs} <file>\n\nRuns a Plain program. Files are read and written next to the\nprogram, not next to wherever you happen to be.`);
+    : "node " + path.basename(process.argv[1] || "rogal.js");
+  console.log(`Rogal v${ROGAL_VERSION}\n\n  ${calledAs} <file>\n\nRuns a Rogal program. Files are read and written next to the\nprogram, not next to wherever you happen to be.`);
   process.exit(file ? 0 : 1);
 }
 
@@ -29,13 +29,13 @@ const near = name => path.resolve(path.dirname(path.resolve(file)), name);
 // wraps it with the line and the caret.
 const host = {
   async library(name, node) {
-    const beside = near(name + ".plain");
-    const shipped = path.join(__dirname, name + ".plain");
+    const beside = near(name + ".rogal");
+    const shipped = path.join(__dirname, name + ".rogal");
     for (const candidate of [beside, shipped]) {
       if (fs.existsSync(candidate)) return fs.readFileSync(candidate, "utf8");
     }
-    throw plainly(`I couldn't find "${name}.plain".`, node,
-      `Put it next to your program, or next to Plain itself.`);
+    throw plainly(`I couldn't find "${name}.rogal".`, node,
+      `Put it next to your program, or next to Rogal itself.`);
   },
 
   async read(name, node) {
@@ -88,7 +88,7 @@ function askOnTheTerminal(question) {
 
 function plainly(message, node, hint) {
   const e = new Error(message);
-  e.plain = true;
+  e.rogal = true;
   e.line = node && node.tok ? node.tok.line : 1;
   e.col = node && node.tok ? node.tok.col : 1;
   e.len = node && node.tok ? String(node.tok.text).length : 1;

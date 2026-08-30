@@ -1,7 +1,7 @@
-const PLAIN_VERSION = "0.7.1";
+const ROGAL_VERSION = "0.8.0";
 
 /* ============================================================
-   Plain — core language
+   Rogal — core language
    set/change · sealed actions · value semantics · sort_up/sort_down
    ============================================================ */
 
@@ -16,10 +16,10 @@ const KEYWORDS = new Set([
 // Names removed in v0.2, kept so the error can teach the replacement.
 const RETIRED = { sort: ["sort_up", "sort_down"] };
 
-class PlainError extends Error {
+class RogalError extends Error {
   constructor(message, tok, extra) {
     super(message);
-    this.plain = true;
+    this.rogal = true;
     this.line = tok ? tok.line : 1;
     this.col = tok ? tok.col : 1;
     this.len = tok ? Math.max(1, String(tok.text).length) : 1;
@@ -48,7 +48,7 @@ function tokenise(src) {
       const startCol = col; let text = "";
       while (i < src.length && (isDigit(src[i]) || src[i] === ".")) { text += src[i]; i++; col++; }
       if ((text.match(/\./g) || []).length > 1)
-        throw new PlainError(`"${text}" is not a number I can read.`, { line, col: startCol, text });
+        throw new RogalError(`"${text}" is not a number I can read.`, { line, col: startCol, text });
       push("number", text, line, startCol);
       continue;
     }
@@ -59,7 +59,7 @@ function tokenise(src) {
       i++; col++;
       while (i < src.length && src[i] !== '"') {
         if (src[i] === "\n")
-          throw new PlainError("This text was never closed with a second quote mark.",
+          throw new RogalError("This text was never closed with a second quote mark.",
             { line: startLine, col: startCol, text: '"' },
             { hint: 'Every piece of text needs a quote mark at each end, like "hello".' });
         if (src[i] === "\\" && i + 1 < src.length) {
@@ -70,7 +70,7 @@ function tokenise(src) {
         value += src[i]; raw += src[i]; i++; col++;
       }
       if (i >= src.length)
-        throw new PlainError("This text was never closed with a second quote mark.",
+        throw new RogalError("This text was never closed with a second quote mark.",
           { line: startLine, col: startCol, text: '"' },
           { hint: 'Every piece of text needs a quote mark at each end, like "hello".' });
       i++; col++; raw += '"';
@@ -93,7 +93,7 @@ function tokenise(src) {
       push("symbol", ch, line, col); i++; col++; continue;
     }
 
-    throw new PlainError(`I don't recognise the character "${ch}".`, { line, col, text: ch });
+    throw new RogalError(`I don't recognise the character "${ch}".`, { line, col, text: ch });
   }
   push("end-of-file", "end of the program", line, col);
   return toks;
@@ -116,7 +116,7 @@ class Parser {
   expectAlone(text, what) {
     const tok = this.expect(text, what);
     if (this.peek().type !== "newline" && this.peek().type !== "end-of-file")
-      throw new PlainError(`"${text}" needs a line of its own.`, tok,
+      throw new RogalError(`"${text}" needs a line of its own.`, tok,
         { hint: `Put ${describeToken(this.peek())} on the next line.` });
     return tok;
   }
@@ -124,13 +124,13 @@ class Parser {
   expect(text, what) {
     if (this.is(text)) return this.next();
     const t = this.peek();
-    throw new PlainError(`I expected ${what} here, but found ${describeToken(t)}.`, t);
+    throw new RogalError(`I expected ${what} here, but found ${describeToken(t)}.`, t);
   }
 
   endOfStatement() {
     if (this.peek().type === "newline" || this.peek().type === "end-of-file") return;
     const t = this.peek();
-    throw new PlainError(`I didn't expect ${describeToken(t)} here.`, t,
+    throw new RogalError(`I didn't expect ${describeToken(t)} here.`, t,
       { hint: "Each instruction goes on its own line." });
   }
 
@@ -164,7 +164,7 @@ class Parser {
             hint += ` The "end" on line ${lastClosed.closedOn} closed the "${lastClosed.opener.text}" from line ${lastClosed.opener.line}.`;
           hint += ` Every "make", "if", "for", "while" and "repeat" needs one of its own.`;
         }
-        throw new PlainError(`This "${opener.text}" from line ${opener.line} was never closed.`, opener, { hint });
+        throw new RogalError(`This "${opener.text}" from line ${opener.line} was never closed.`, opener, { hint });
       }
       if (t.type === "keyword" && closers.includes(t.text)) break;
       body.push(this.parseStatement());
@@ -192,14 +192,14 @@ class Parser {
         case "give": return this.parseGive();
         case "stop": { this.next(); this.endOfStatement(); return { kind: "stop", tok: t }; }
         case "end":
-          throw new PlainError(`This "end" doesn't close anything.`, t,
+          throw new RogalError(`This "end" doesn't close anything.`, t,
             { hint: `Every "end" needs a matching "if", "for", "while", "repeat" or "make" above it.` });
       }
     }
 
     if (t.type === "name" && this.is("=", 1)) {
       const rest = this.sourceAfterEquals();
-      throw new PlainError(`Plain has no "=".`, t, {
+      throw new RogalError(`Rogal has no "=".`, t, {
         hint: `Use "set ${t.text} to ..." to create it, or "change ${t.text} to ..." if it already exists.`,
         fix: { line: t.line, col: t.col, len: this.lengthToEndOfLine(t), replacement: `set ${t.text} to ${rest}` }
       });
@@ -208,7 +208,7 @@ class Parser {
     const expr = this.parseExpression();
     this.endOfStatement();
     if (expr.kind === "call") { expr.wholeStatement = true; return { kind: "expression-statement", expr, tok: t }; }
-    throw new PlainError(`This line doesn't do anything.`, t,
+    throw new RogalError(`This line doesn't do anything.`, t,
       { hint: `Did you mean to start it with "show", "set" or "change"?` });
   }
 
@@ -232,7 +232,7 @@ class Parser {
     const kw = this.next();
     const nameTok = this.peek();
     if (nameTok.type !== "name")
-      throw new PlainError(`After "${word}" I need a name, but found ${describeToken(nameTok)}.`, nameTok,
+      throw new RogalError(`After "${word}" I need a name, but found ${describeToken(nameTok)}.`, nameTok,
         { hint: `Names start with a letter, like: ${word} total to 0` });
     this.next();
     let target = { kind: "name", name: nameTok.text, tok: nameTok };
@@ -240,7 +240,7 @@ class Parser {
       if (this.is(".")) {
         this.next();
         const f = this.peek();
-        if (f.type !== "name") throw new PlainError(`After "." I need a field name.`, f);
+        if (f.type !== "name") throw new RogalError(`After "." I need a field name.`, f);
         this.next();
         target = { kind: "field", object: target, field: f.text, tok: f };
       } else {
@@ -251,11 +251,11 @@ class Parser {
       }
     }
     if (word === "set" && target.kind !== "name")
-      throw new PlainError(`"set" creates a whole new name, so it can't have a "." or "[" after it.`, target.tok,
+      throw new RogalError(`"set" creates a whole new name, so it can't have a "." or "[" after it.`, target.tok,
         { hint: `To alter part of something that already exists, use "change".` });
     if (!this.is("to")) {
       const t = this.peek();
-      throw new PlainError(`After "${word} ${nameTok.text}" I need the word "to".`, t,
+      throw new RogalError(`After "${word} ${nameTok.text}" I need the word "to".`, t,
         { hint: `For example: ${word} ${nameTok.text} to 10` });
     }
     this.next();
@@ -268,11 +268,11 @@ class Parser {
   parseUse() {
     const kw = this.next();
     if (this.blockDepth > 0)
-      throw new PlainError(`"use" belongs at the top of a program, not inside a block.`, kw,
+      throw new RogalError(`"use" belongs at the top of a program, not inside a block.`, kw,
         { hint: `Put every "use" line above the rest of your code.` });
     const nameTok = this.peek();
     if (nameTok.type !== "text")
-      throw new PlainError(`After "use" I need the name of a file in quotes.`, nameTok,
+      throw new RogalError(`After "use" I need the name of a file in quotes.`, nameTok,
         { hint: `For example: use "dates"` });
     this.next();
     this.endOfStatement();
@@ -295,8 +295,8 @@ class Parser {
     if (this.is("else")) {
       const elseTok = this.next();
       if (!this.is("if") && this.peek().type !== "newline" && this.peek().type !== "end-of-file")
-        throw new PlainError(`"else" needs a line of its own.`, elseTok,
-          { hint: `Put ${describeToken(this.peek())} on the next line. Since Plain ignores indentation, keeping "else" alone is what makes the shape of a program readable.` });
+        throw new RogalError(`"else" needs a line of its own.`, elseTok,
+          { hint: `Put ${describeToken(this.peek())} on the next line. Since Rogal ignores indentation, keeping "else" alone is what makes the shape of a program readable.` });
       if (this.is("if")) {
         otherwise = { kind: "block", body: [this.parseIf()] };
         return { kind: "if", test, then, otherwise, tok: kw };
@@ -312,7 +312,7 @@ class Parser {
     this.expect("each", 'the word "each"');
     const nameTok = this.peek();
     if (nameTok.type !== "name")
-      throw new PlainError(`After "for each" I need a name for one item.`, nameTok,
+      throw new RogalError(`After "for each" I need a name for one item.`, nameTok,
         { hint: `For example: for each item in shopping` });
     this.next();
     this.expect("in", 'the word "in"');
@@ -342,11 +342,11 @@ class Parser {
   parseMake() {
     const kw = this.next();
     if (this.blockDepth > 0)
-      throw new PlainError(`Actions can only be made at the top level of a program.`, kw,
+      throw new RogalError(`Actions can only be made at the top level of a program.`, kw,
         { hint: `Move this "make" above the block it's inside. Actions can call each other, so nothing is lost.` });
     const nameTok = this.peek();
     if (nameTok.type !== "name")
-      throw new PlainError(`After "make" I need a name for the action.`, nameTok,
+      throw new RogalError(`After "make" I need a name for the action.`, nameTok,
         { hint: `For example: make double(n)` });
     this.next();
     this.expect("(", 'an opening "("');
@@ -354,10 +354,10 @@ class Parser {
     if (!this.is(")")) {
       while (true) {
         const p = this.peek();
-        if (p.type !== "name") throw new PlainError(`I need a name for this input.`, p);
+        if (p.type !== "name") throw new RogalError(`I need a name for this input.`, p);
         this.next();
         if (params.includes(p.text))
-          throw new PlainError(`This action already has an input called "${p.text}".`, p,
+          throw new RogalError(`This action already has an input called "${p.text}".`, p,
             { hint: `Each input needs its own name.` });
         params.push(p.text); paramToks.push(p);
         if (this.is(",")) { this.next(); continue; }
@@ -406,14 +406,14 @@ class Parser {
         this.next();
         if (this.is("least")) { this.next(); kind = "at least"; }
         else if (this.is("most")) { this.next(); kind = "at most"; }
-        else throw new PlainError(`After "is at" I expect "least" or "most".`, this.peek());
+        else throw new RogalError(`After "is at" I expect "least" or "most".`, this.peek());
       } else kind = "is";
       left = { kind: "compare", op: kind, left, right: this.parseSum(), tok: op };
     }
     if (this.is("<") || this.is(">") || this.is("==") || this.is(">=") || this.is("<=")) {
       const t = this.peek();
       const word = { "<": "is less than", ">": "is more than", "==": "is", ">=": "is at least", "<=": "is at most" }[t.text];
-      throw new PlainError(`Plain writes comparisons in words.`, t,
+      throw new RogalError(`Rogal writes comparisons in words.`, t,
         { hint: `Use "${word}" instead of "${t.text}".`,
           fix: { line: t.line, col: t.col, len: t.text.length, replacement: word } });
     }
@@ -469,7 +469,7 @@ class Parser {
       } else if (this.is(".")) {
         this.next();
         const f = this.peek();
-        if (f.type !== "name") throw new PlainError(`After "." I need a field name.`, f);
+        if (f.type !== "name") throw new RogalError(`After "." I need a field name.`, f);
         this.next();
         node = { kind: "field", object: node, field: f.text, tok: f };
       } else if (this.is("[")) {
@@ -507,7 +507,7 @@ class Parser {
           if (tk.text === ")" || tk.text === "]") depth--;
           j++;
         }
-        throw new PlainError(`Lists are written with square brackets, not round ones.`, open, {
+        throw new RogalError(`Lists are written with square brackets, not round ones.`, open, {
           hint: `Round brackets group a calculation, like (2 + 3) * 4. To make a list, use [ ].`,
           fix: close ? { line: open.line, col: open.col, len: (close.col + 1) - open.col,
                          replacement: "[" + this.textBetween(open, close) + "]" } : null
@@ -543,7 +543,7 @@ class Parser {
           this.skipBlank();
           const k = this.peek();
           if (k.type !== "name" && k.type !== "text")
-            throw new PlainError(`A record field needs a name before the ":".`, k,
+            throw new RogalError(`A record field needs a name before the ":".`, k,
               { hint: `For example: {name: "Ada", age: 36}` });
           this.next();
           this.expect(":", 'a ":"');
@@ -557,7 +557,7 @@ class Parser {
       return { kind: "record", fields, tok: open };
     }
 
-    throw new PlainError(`I didn't expect ${describeToken(t)} here.`, t);
+    throw new RogalError(`I didn't expect ${describeToken(t)} here.`, t);
   }
 }
 
@@ -784,10 +784,10 @@ class Interpreter {
   tick(tok) {
     this.steps++;
     if (this.steps > 4000000)
-      throw new PlainError("This program was still running after four million steps, so I stopped it.", tok,
+      throw new RogalError("This program was still running after four million steps, so I stopped it.", tok,
         { hint: "A loop is probably never reaching its stopping point. Check that its test can become false." });
     if ((this.steps & 1023) === 0 && Date.now() - this.started > 5000)
-      throw new PlainError("This program ran for more than five seconds, so I stopped it.", tok,
+      throw new RogalError("This program ran for more than five seconds, so I stopped it.", tok,
         { hint: "A loop is probably never reaching its stopping point. Check that its test can become false." });
   }
 
@@ -799,7 +799,7 @@ class Interpreter {
   declare(scope, name, value, tok, what) {
     if (scope.has(name)) {
       const isBuiltin = this.builtins.has(name) && !scope.userNames().has(name);
-      throw new PlainError(
+      throw new RogalError(
         isBuiltin
           ? `"${name}" is already the name of a built-in action.`
           : `"${name}" already exists.`,
@@ -845,9 +845,9 @@ class Interpreter {
       case "repeat": {
         const n = await this.eval(node.count, scope);
         if (typeof n !== "number")
-          throw new PlainError(`"repeat" needs a number of times, but got ${describeValue(n)}.`, node.tok);
+          throw new RogalError(`"repeat" needs a number of times, but got ${describeValue(n)}.`, node.tok);
         if (Math.floor(n) !== n)
-          throw new PlainError(`"repeat" needs a whole number of times, but got ${fmtNumber(n)}.`, node.tok,
+          throw new RogalError(`"repeat" needs a whole number of times, but got ${fmtNumber(n)}.`, node.tok,
             { hint: `Use round(${fmtNumber(n)}) for ${fmtNumber(roundAwayFromZero(n))} times, or write the whole number you meant.` });
         for (let i = 0; i < n; i++) {
           this.tick(node.tok);
@@ -861,10 +861,10 @@ class Interpreter {
         let items;
         if (Array.isArray(list)) items = list.slice();
         else if (typeof list === "string") items = list.split("");
-        else throw new PlainError(`"for each" needs a list to go through, but got ${describeValue(list)}.`, node.tok,
+        else throw new RogalError(`"for each" needs a list to go through, but got ${describeValue(list)}.`, node.tok,
           { hint: isRecord(list) ? `To go through a record, use: for each field in keys(...)` : null });
         if (scope.has(node.name))
-          throw new PlainError(`"${node.name}" already exists, so it can't also be the loop's name.`, node.nameTok,
+          throw new RogalError(`"${node.name}" already exists, so it can't also be the loop's name.`, node.nameTok,
             { hint: `Pick a different name for each item.` });
         for (const item of items) {
           this.tick(node.tok);
@@ -884,7 +884,7 @@ class Interpreter {
       case "use": return;                       // already gathered before the run
       case "stop": throw new StopSignal();
       case "expression-statement": await this.eval(node.expr, scope); return;
-      default: throw new PlainError("I don't know how to run this line.", node.tok);
+      default: throw new RogalError("I don't know how to run this line.", node.tok);
     }
   }
 
@@ -895,7 +895,7 @@ class Interpreter {
       if (typeof v === "number") hint += ` Try comparing it, like: ... is more than 0`;
       else if (typeof v === "string") hint += ` Try comparing it, like: ... is "yes"`;
       else if (Array.isArray(v)) hint += ` Try: count(...) is more than 0`;
-      throw new PlainError(`This test gave ${describeValue(v)} instead of true or false.`, node.tok, { hint });
+      throw new RogalError(`This test gave ${describeValue(v)} instead of true or false.`, node.tok, { hint });
     }
     return v;
   }
@@ -923,11 +923,11 @@ class Interpreter {
     }
     if (t.kind === "field") {
       const obj = await this.eval(t.object, scope);
-      if (!isRecord(obj)) throw new PlainError(`I can only change a field on a record, but this is ${typeWord(obj)}.`, t.tok);
+      if (!isRecord(obj)) throw new RogalError(`I can only change a field on a record, but this is ${typeWord(obj)}.`, t.tok);
       if (!(t.field in obj.fields)) {
         const keys = Object.keys(obj.fields);
         const guess = nearest(t.field, keys);
-        throw new PlainError(`This record has no field called "${t.field}", so there's nothing to change.`, t.tok, {
+        throw new RogalError(`This record has no field called "${t.field}", so there's nothing to change.`, t.tok, {
           hint: keys.length
             ? `It has: ${keys.join(", ")}. A record's fields are fixed when you create it.`
             : `It has no fields at all. A record's fields are fixed when you create it.`,
@@ -944,44 +944,44 @@ class Interpreter {
       // you had to type the quotes, so it is a deliberate act.
       if (isRecord(obj)) {
         if (typeof idx !== "string")
-          throw new PlainError(`A record is looked up by a name in quotes, but got ${describeValue(idx)}.`, t.tok,
+          throw new RogalError(`A record is looked up by a name in quotes, but got ${describeValue(idx)}.`, t.tok,
             { hint: `For example: change counts["apples"] to 1` });
         obj.fields[idx] = value;
         return;
       }
-      if (!Array.isArray(obj)) throw new PlainError(`I can only change an item on a list or a record, but this is ${typeWord(obj)}.`, t.tok);
+      if (!Array.isArray(obj)) throw new RogalError(`I can only change an item on a list or a record, but this is ${typeWord(obj)}.`, t.tok);
       if (typeof idx === "string")
-        throw new PlainError(`A list is looked up by position, but got the text ${JSON.stringify(idx)}.`, t.tok,
+        throw new RogalError(`A list is looked up by position, but got the text ${JSON.stringify(idx)}.`, t.tok,
           { hint: `Lists count 1, 2, 3. Only records are looked up by name.` });
       this.checkIndex(obj, idx, t.tok);
       obj[Math.floor(idx) - 1] = value;
       return;
     }
-    throw new PlainError("I can't change that.", node.tok);
+    throw new RogalError("I can't change that.", node.tok);
   }
 
   /* the one error everyone meets */
   unknownName(name, tok, scope, changing) {
     if (insideAction(scope) && this.globals.vars.has(name))
-      throw new PlainError(`"${name}" exists outside this action, but actions can't see outside names.`, tok,
+      throw new RogalError(`"${name}" exists outside this action, but actions can't see outside names.`, tok,
         { hint: isAction(this.globals.vars.get(name))
             ? `Pass it in as an input if this action needs it.`
             : `Pass it in instead, so the action's first line shows everything it uses.` });
 
     if (RETIRED[name]) {
       const [a, b] = RETIRED[name];
-      throw new PlainError(`"${name}" no longer exists on its own, because it never said which way round.`, tok,
+      throw new RogalError(`"${name}" no longer exists on its own, because it never said which way round.`, tok,
         { hint: `Use "${a}" for smallest first, or "${b}" for largest first.`,
           fix: { line: tok.line, col: tok.col, len: name.length, replacement: a } });
     }
 
     const site = this.program ? findCreationSite(this.program, name, null) : null;
     if (site && site.topLevel) {
-      throw new PlainError(`I don't know what "${name}" is yet.`, tok,
+      throw new RogalError(`I don't know what "${name}" is yet.`, tok,
         { hint: `There's an action called "${name}" further down. Actions have to be made before the line that uses them.` });
     }
     if (site) {
-      throw new PlainError(`"${name}" only exists inside the "${site.blockTok.text}" on line ${site.blockTok.line}.`, tok,
+      throw new RogalError(`"${name}" only exists inside the "${site.blockTok.text}" on line ${site.blockTok.line}.`, tok,
         { hint: site.loopVar
             ? `A loop's name only lasts for the loop. To keep something, create it before: set kept to nothing, then "change kept to ${name}" inside.`
             : site.madeWith === "make"
@@ -990,7 +990,7 @@ class Interpreter {
     }
 
     const guess = suggestName(name, scope);
-    throw new PlainError(
+    throw new RogalError(
       changing ? `There's nothing called "${name}" to change.` : `I don't know what "${name}" is.`,
       tok,
       {
@@ -1002,13 +1002,13 @@ class Interpreter {
 
   checkIndex(list, idx, tok) {
     if (typeof idx !== "number")
-      throw new PlainError(`A list position must be a number, but got ${describeValue(idx)}.`, tok);
+      throw new RogalError(`A list position must be a number, but got ${describeValue(idx)}.`, tok);
     if (Math.floor(idx) !== idx)
-      throw new PlainError(`A list position must be a whole number, but got ${fmtNumber(idx)}.`, tok,
+      throw new RogalError(`A list position must be a whole number, but got ${fmtNumber(idx)}.`, tok,
         { hint: `Positions count 1, 2, 3 and so on. Use round(...) if this came from a calculation.` });
     const i = Math.floor(idx);
     if (i < 1 || i > list.length)
-      throw new PlainError(
+      throw new RogalError(
         list.length === 0
           ? `You asked for item ${fmtNumber(idx)}, but this list is empty.`
           : `You asked for item ${fmtNumber(idx)}, but this list only has ${list.length}.`,
@@ -1026,7 +1026,7 @@ class Interpreter {
         if (insideAction(scope) && this.globals.vars.has(node.name)) {
           const outer = this.globals.vars.get(node.name);
           if (isAction(outer)) return outer;
-          throw new PlainError(`"${node.name}" exists outside this action, but actions can't see outside names.`, node.tok,
+          throw new RogalError(`"${node.name}" exists outside this action, but actions can't see outside names.`, node.tok,
             { hint: `Pass it in instead, so the action's first line shows everything it uses.` });
         }
         this.unknownName(node.name, node.tok, scope, false);
@@ -1046,14 +1046,14 @@ class Interpreter {
           if (!(node.field in obj.fields)) {
             const keys = Object.keys(obj.fields);
             const guess = nearest(node.field, keys);
-            throw new PlainError(`This record has no field called "${node.field}".`, node.tok, {
+            throw new RogalError(`This record has no field called "${node.field}".`, node.tok, {
               hint: keys.length ? `It has: ${keys.join(", ")}.` : `It has no fields at all.`,
               fix: guess ? { line: node.tok.line, col: node.tok.col, len: node.field.length, replacement: guess } : null
             });
           }
           return obj.fields[node.field];
         }
-        throw new PlainError(`I can only read fields from a record, but this is ${typeWord(obj)}.`, node.tok);
+        throw new RogalError(`I can only read fields from a record, but this is ${typeWord(obj)}.`, node.tok);
       }
 
       case "index": {
@@ -1061,37 +1061,37 @@ class Interpreter {
         const idx = await this.eval(node.index, scope);
         if (isRecord(obj)) {
           if (typeof idx !== "string")
-            throw new PlainError(`A record is looked up by a name in quotes, but got ${describeValue(idx)}.`, node.tok,
+            throw new RogalError(`A record is looked up by a name in quotes, but got ${describeValue(idx)}.`, node.tok,
               { hint: `For example: counts["apples"]` });
           if (!(idx in obj.fields))
-            throw new PlainError(`This record has nothing under "${idx}".`, node.tok,
+            throw new RogalError(`This record has nothing under "${idx}".`, node.tok,
               { hint: `Check first with has(...), or set it with change ...["${idx}"] to something.` });
           return obj.fields[idx];
         }
         if (Array.isArray(obj)) {
           if (typeof idx === "string")
-            throw new PlainError(`A list is looked up by position, but got the text ${JSON.stringify(idx)}.`, node.tok,
+            throw new RogalError(`A list is looked up by position, but got the text ${JSON.stringify(idx)}.`, node.tok,
               { hint: `Lists count 1, 2, 3. Only records are looked up by name.` });
           this.checkIndex(obj, idx, node.tok); return obj[Math.floor(idx) - 1];
         }
         if (typeof obj === "string") {
-          if (typeof idx !== "number") throw new PlainError(`A position must be a number.`, node.tok);
+          if (typeof idx !== "number") throw new RogalError(`A position must be a number.`, node.tok);
           if (Math.floor(idx) !== idx)
-            throw new PlainError(`A letter position must be a whole number, but got ${fmtNumber(idx)}.`, node.tok,
+            throw new RogalError(`A letter position must be a whole number, but got ${fmtNumber(idx)}.`, node.tok,
               { hint: `Letters are numbered 1, 2, 3 and so on.` });
           const i = Math.floor(idx);
           if (i < 1 || i > obj.length)
-            throw new PlainError(`You asked for letter ${fmtNumber(idx)}, but this text has ${obj.length}.`, node.tok,
+            throw new RogalError(`You asked for letter ${fmtNumber(idx)}, but this text has ${obj.length}.`, node.tok,
               { hint: "Letters are numbered from 1." });
           return obj[i - 1];
         }
-        throw new PlainError(`I can only take a position from a list or text, but this is ${typeWord(obj)}.`, node.tok);
+        throw new RogalError(`I can only take a position from a list or text, but this is ${typeWord(obj)}.`, node.tok);
       }
 
       case "call": {
         const callee = await this.eval(node.callee, scope);
         if (isAction(callee) && callee.effect && !node.wholeStatement) {
-          throw new PlainError(`"${callee.name}" reaches outside the program, so it needs a line of its own.`, node.tok,
+          throw new RogalError(`"${callee.name}" reaches outside the program, so it needs a line of its own.`, node.tok,
             { hint: `Write "set something to ${callee.name}(...)" on its own line first, then use that name here.` });
         }
         const args = await Promise.all(node.args.map(a => this.eval(a, scope)));
@@ -1101,26 +1101,26 @@ class Interpreter {
       case "not": {
         const v = await this.eval(node.value, scope);
         if (typeof v !== "boolean")
-          throw new PlainError(`"not" needs a true/false value, but got ${describeValue(v)}.`, node.tok);
+          throw new RogalError(`"not" needs a true/false value, but got ${describeValue(v)}.`, node.tok);
         return !v;
       }
 
       case "negate": {
         const v = await this.eval(node.value, scope);
         if (typeof v !== "number")
-          throw new PlainError(`I can only make numbers negative, but this is ${typeWord(v)}.`, node.tok);
+          throw new RogalError(`I can only make numbers negative, but this is ${typeWord(v)}.`, node.tok);
         return -v;
       }
 
       case "logic": {
         const l = await this.eval(node.left, scope);
         if (typeof l !== "boolean")
-          throw new PlainError(`"${node.op}" needs true/false on the left, but got ${describeValue(l)}.`, node.tok);
+          throw new RogalError(`"${node.op}" needs true/false on the left, but got ${describeValue(l)}.`, node.tok);
         if (node.op === "and" && !l) return false;
         if (node.op === "or" && l) return true;
         const r = await this.eval(node.right, scope);
         if (typeof r !== "boolean")
-          throw new PlainError(`"${node.op}" needs true/false on the right, but got ${describeValue(r)}.`, node.tok);
+          throw new RogalError(`"${node.op}" needs true/false on the right, but got ${describeValue(r)}.`, node.tok);
         return r;
       }
 
@@ -1134,7 +1134,7 @@ class Interpreter {
           return node.op === "more" ? c > 0 : node.op === "less" ? c < 0 : node.op === "at least" ? c >= 0 : c <= 0;
         }
         if (typeof l !== "number" || typeof r !== "number")
-          throw new PlainError(`I can only compare sizes of numbers or text, but got ${describeValue(l)} and ${describeValue(r)}.`, node.tok,
+          throw new RogalError(`I can only compare sizes of numbers or text, but got ${describeValue(l)} and ${describeValue(r)}.`, node.tok,
             { hint: `To check they match exactly, use "is".` });
         switch (node.op) {
           case "more": return l > r;
@@ -1145,7 +1145,7 @@ class Interpreter {
       }
 
       case "arith": return await this.arith(node, scope);
-      default: throw new PlainError("I don't understand this expression.", node.tok);
+      default: throw new RogalError("I don't understand this expression.", node.tok);
     }
   }
 
@@ -1158,26 +1158,26 @@ class Interpreter {
       if (typeof l === "number" && typeof r === "number") return l + r;
       if (typeof l === "string" || typeof r === "string") {
         if (l === null || r === null)
-          throw new PlainError(`I can't join text with nothing.`, node.tok, { hint: "One side has no value yet." });
+          throw new RogalError(`I can't join text with nothing.`, node.tok, { hint: "One side has no value yet." });
         if (Array.isArray(l) || Array.isArray(r) || isRecord(l) || isRecord(r))
-          throw new PlainError(`I can't join text with ${typeWord(Array.isArray(l) || isRecord(l) ? l : r)}.`, node.tok,
+          throw new RogalError(`I can't join text with ${typeWord(Array.isArray(l) || isRecord(l) ? l : r)}.`, node.tok,
             { hint: `Use text(...) if you really want it as text.` });
         return toDisplay(l) + toDisplay(r);
       }
       if (Array.isArray(l) && Array.isArray(r)) return l.concat(r);
-      throw new PlainError(`I can't add ${typeWord(l)} to ${typeWord(r)}.`, node.tok);
+      throw new RogalError(`I can't add ${typeWord(l)} to ${typeWord(r)}.`, node.tok);
     }
 
     if (typeof l !== "number" || typeof r !== "number") {
       const word = { "-": "subtract", "*": "multiply", "/": "divide", "%": "take the remainder of" }[op];
       const asked = this.askOrigin(node.left) || this.askOrigin(node.right);
-      throw new PlainError(`I can only ${word} numbers, but got ${describeValue(l)} and ${describeValue(r)}.`, node.tok,
+      throw new RogalError(`I can only ${word} numbers, but got ${describeValue(l)} and ${describeValue(r)}.`, node.tok,
         { hint: asked
             ? `"${asked}" holds text, because that is what "ask" gives back. Wrap it in number(${asked}) to do sums with it.`
             : (typeof l === "string" || typeof r === "string" ? `Use number(...) to turn text into a number.` : null) });
     }
     if ((op === "/" || op === "%") && r === 0)
-      throw new PlainError("Dividing by zero doesn't give a number.", node.tok,
+      throw new RogalError("Dividing by zero doesn't give a number.", node.tok,
         { hint: "Check the value on the right of the / before you divide." });
 
     switch (op) {
@@ -1191,11 +1191,11 @@ class Interpreter {
   async callValue(callee, args, node) {
     if (isAction(callee)) {
       if (callee.effect && this.depth > 0)
-        throw new PlainError(`"${callee.name}" can't be used inside an action.`, node.tok,
+        throw new RogalError(`"${callee.name}" can't be used inside an action.`, node.tok,
           { hint: `Read or fetch at the top level of your program, then pass the value in. That keeps every action free of surprises.` });
       if (callee.native) return await callee.native(args, node, this);
       if (args.length !== callee.params.length)
-        throw new PlainError(
+        throw new RogalError(
           `"${callee.name}" needs ${callee.params.length} value${callee.params.length === 1 ? "" : "s"}, but got ${args.length}.`,
           node.tok, { hint: callee.params.length ? `It expects: ${callee.params.join(", ")}` : `It expects nothing at all.` });
       // sealed: an action sees its inputs and the built-ins, nothing else
@@ -1204,7 +1204,7 @@ class Interpreter {
       this.depth++;
       if (this.depth > MAX_DEPTH) {
         this.depth--;
-        throw new PlainError(
+        throw new RogalError(
           `"${callee.name}" has called itself ${MAX_DEPTH} times without finishing.`, node.tok,
           { hint: `Every path through an action must eventually reach a "give" that doesn't call it again. Check the test that's meant to stop it.` });
       }
@@ -1213,7 +1213,7 @@ class Interpreter {
       finally { this.depth--; }
       return null;
     }
-    throw new PlainError(`${describeValue(callee)} is not something I can run.`, node.tok,
+    throw new RogalError(`${describeValue(callee)} is not something I can run.`, node.tok,
       { hint: `Only actions made with "make" can be called with ().` });
   }
 }
@@ -1228,19 +1228,19 @@ function effect(name, params, fn) { return { __action: true, native: fn, name, p
 
 function need(args, n, name, node) {
   if (args.length !== n)
-    throw new PlainError(`"${name}" needs ${n} value${n === 1 ? "" : "s"}, but got ${args.length}.`, node.tok);
+    throw new RogalError(`"${name}" needs ${n} value${n === 1 ? "" : "s"}, but got ${args.length}.`, node.tok);
 }
 function needRange(args, lo, hi, name, node) {
   if (args.length < lo || args.length > hi)
-    throw new PlainError(`"${name}" needs ${lo} or ${hi} values, but got ${args.length}.`, node.tok);
+    throw new RogalError(`"${name}" needs ${lo} or ${hi} values, but got ${args.length}.`, node.tok);
 }
 function expectList(v, name, node) {
-  if (!Array.isArray(v)) throw new PlainError(`"${name}" needs a list, but got ${describeValue(v)}.`, node.tok);
+  if (!Array.isArray(v)) throw new RogalError(`"${name}" needs a list, but got ${describeValue(v)}.`, node.tok);
   return v;
 }
 function padTo(text, width, name, node, onLeft) {
   if (typeof width !== "number" || Math.floor(width) !== width || width < 0)
-    throw new PlainError(`"${name}" needs a whole width of 0 or more, but got ${describeValue(width)}.`, node.tok,
+    throw new RogalError(`"${name}" needs a whole width of 0 or more, but got ${describeValue(width)}.`, node.tok,
       { hint: `For example: ${name}("apple", 12)` });
   if (text.length >= width) return text;           // never lose what you were given
   const spaces = " ".repeat(width - text.length);
@@ -1248,7 +1248,7 @@ function padTo(text, width, name, node, onLeft) {
 }
 
 function expectText(v, name, node) {
-  if (typeof v !== "string") throw new PlainError(`"${name}" needs text, but got ${describeValue(v)}.`, node.tok);
+  if (typeof v !== "string") throw new RogalError(`"${name}" needs text, but got ${describeValue(v)}.`, node.tok);
   return v;
 }
 
@@ -1258,14 +1258,14 @@ function sortList(list, field, down, name, node) {
 
   if (field !== undefined) {
     if (typeof field !== "string")
-      throw new PlainError(`"${name}" needs the field name as text, like ${name}(people, "born").`, node.tok);
+      throw new RogalError(`"${name}" needs the field name as text, like ${name}(people, "born").`, node.tok);
     for (const item of copy) {
       if (!isRecord(item))
-        throw new PlainError(`"${name}" was given a field name, so every item must be a record, but found ${describeValue(item)}.`, node.tok);
+        throw new RogalError(`"${name}" was given a field name, so every item must be a record, but found ${describeValue(item)}.`, node.tok);
       if (!(field in item.fields)) {
         const keys = Object.keys(item.fields);
         const guess = nearest(field, keys);
-        throw new PlainError(`These records have no field called "${field}".`, node.tok, {
+        throw new RogalError(`These records have no field called "${field}".`, node.tok, {
           hint: keys.length ? `They have: ${keys.join(", ")}.` : `They have no fields at all.`,
           fix: guess ? { line: node.tok.line, find: '"' + field + '"', replacement: '"' + guess + '"' } : null
         });
@@ -1278,7 +1278,7 @@ function sortList(list, field, down, name, node) {
   const allNum = vals.every(x => typeof x === "number");
   const allTxt = vals.every(x => typeof x === "string");
   if (!allNum && !allTxt)
-    throw new PlainError(
+    throw new RogalError(
       field !== undefined
         ? `"${name}" needs every "${field}" to be all numbers or all text.`
         : `"${name}" needs a list of all numbers or all text.`,
@@ -1299,7 +1299,7 @@ function installBuiltins(scope, interp) {
     const v = a[0];
     if (Array.isArray(v) || typeof v === "string") return v.length;
     if (isRecord(v)) return Object.keys(v.fields).length;
-    throw new PlainError(`"count" works on a list, text or record, but got ${describeValue(v)}.`, n.tok);
+    throw new RogalError(`"count" works on a list, text or record, but got ${describeValue(v)}.`, n.tok);
   });
 
   def("add", ["list", "item"], (a, n) => {
@@ -1319,14 +1319,14 @@ function installBuiltins(scope, interp) {
   def("first", ["list"], (a, n) => {
     need(a, 1, "first", n);
     const l = expectList(a[0], "first", n);
-    if (l.length === 0) throw new PlainError(`"first" needs a list with at least one item, but this one is empty.`, n.tok);
+    if (l.length === 0) throw new RogalError(`"first" needs a list with at least one item, but this one is empty.`, n.tok);
     return l[0];
   });
 
   def("last", ["list"], (a, n) => {
     need(a, 1, "last", n);
     const l = expectList(a[0], "last", n);
-    if (l.length === 0) throw new PlainError(`"last" needs a list with at least one item, but this one is empty.`, n.tok);
+    if (l.length === 0) throw new RogalError(`"last" needs a list with at least one item, but this one is empty.`, n.tok);
     return l[l.length - 1];
   });
 
@@ -1341,7 +1341,7 @@ function installBuiltins(scope, interp) {
     if (Array.isArray(a[0])) return a[0].some(x => sameValue(x, a[1]));
     if (typeof a[0] === "string") return a[0].includes(String(a[1]));
     if (isRecord(a[0])) return String(a[1]) in a[0].fields;
-    throw new PlainError(`"has" works on a list, text or record.`, n.tok);
+    throw new RogalError(`"has" works on a list, text or record.`, n.tok);
   });
 
   def("sum", ["list"], (a, n) => {
@@ -1349,7 +1349,7 @@ function installBuiltins(scope, interp) {
     let t = 0;
     for (const x of expectList(a[0], "sum", n)) {
       if (typeof x !== "number")
-        throw new PlainError(`"sum" needs every item to be a number, but found ${describeValue(x)}.`, n.tok);
+        throw new RogalError(`"sum" needs every item to be a number, but found ${describeValue(x)}.`, n.tok);
       t += x;
     }
     return t;
@@ -1369,10 +1369,10 @@ function installBuiltins(scope, interp) {
     need(a, 2, "join", n);
     const l = expectList(a[0], "join", n);
     if (Array.isArray(a[1]))
-      throw new PlainError(`"join" turns one list into text, using a separator.`, n.tok,
+      throw new RogalError(`"join" turns one list into text, using a separator.`, n.tok,
         { hint: `To combine two lists into one, use a + b instead.` });
     if (l.length === 1 && Array.isArray(l[0]))
-      throw new PlainError(`"join" was given a list holding one other list, so there is nothing to put a separator between.`, n.tok,
+      throw new RogalError(`"join" was given a list holding one other list, so there is nothing to put a separator between.`, n.tok,
         { hint: `Square brackets build a new list. If you already have one, hand it over without them.` });
     expectText(a[1], "join", n);
     return l.map(toDisplay).join(a[1]);
@@ -1390,10 +1390,10 @@ function installBuiltins(scope, interp) {
 
   def("round", ["number", "places"], (a, n) => {
     needRange(a, 1, 2, "round", n);
-    if (typeof a[0] !== "number") throw new PlainError(`"round" needs a number, but got ${describeValue(a[0])}.`, n.tok);
+    if (typeof a[0] !== "number") throw new RogalError(`"round" needs a number, but got ${describeValue(a[0])}.`, n.tok);
     if (a.length === 1) return roundAwayFromZero(a[0]);
     if (typeof a[1] !== "number" || a[1] < 0 || Math.floor(a[1]) !== a[1])
-      throw new PlainError(`The places for "round" must be a whole number of 0 or more, but got ${describeValue(a[1])}.`, n.tok,
+      throw new RogalError(`The places for "round" must be a whole number of 0 or more, but got ${describeValue(a[1])}.`, n.tok,
         { hint: `For example: round(17.12345, 2) gives 17.12` });
     return roundTo(a[0], a[1]);
   });
@@ -1401,9 +1401,9 @@ function installBuiltins(scope, interp) {
   def("random", ["lowest", "highest"], (a, n) => {
     need(a, 2, "random", n);
     if (typeof a[0] !== "number" || typeof a[1] !== "number")
-      throw new PlainError(`"random" needs two numbers.`, n.tok);
+      throw new RogalError(`"random" needs two numbers.`, n.tok);
     for (const x of a) if (Math.floor(x) !== x)
-      throw new PlainError(`"random" needs whole numbers, but got ${fmtNumber(x)}.`, n.tok,
+      throw new RogalError(`"random" needs whole numbers, but got ${fmtNumber(x)}.`, n.tok,
         { hint: `random(1, 6) gives a whole number from 1 to 6.` });
     const lo = Math.ceil(Math.min(a[0], a[1])), hi = Math.floor(Math.max(a[0], a[1]));
     return lo + Math.floor(Math.random() * (hi - lo + 1));
@@ -1417,7 +1417,7 @@ function installBuiltins(scope, interp) {
     expectText(a[0], "number", n);
     const v = Number(a[0].trim());
     if (a[0].trim() === "" || isNaN(v))
-      throw new PlainError(`"${a[0]}" can't be read as a number.`, n.tok,
+      throw new RogalError(`"${a[0]}" can't be read as a number.`, n.tok,
         { hint: `Text like "12" works; text like "twelve" does not.` });
     return v;
   });
@@ -1426,16 +1426,16 @@ function installBuiltins(scope, interp) {
     need(a, 3, "slice", n);
     const [thing, from, to] = a;
     if (!Array.isArray(thing) && typeof thing !== "string")
-      throw new PlainError(`"slice" works on a list or text, but got ${describeValue(thing)}.`, n.tok);
+      throw new RogalError(`"slice" works on a list or text, but got ${describeValue(thing)}.`, n.tok);
     for (const x of [from, to]) {
       if (typeof x !== "number")
-        throw new PlainError(`"slice" needs whole numbers for the two positions, but got ${describeValue(x)}.`, n.tok);
+        throw new RogalError(`"slice" needs whole numbers for the two positions, but got ${describeValue(x)}.`, n.tok);
       if (Math.floor(x) !== x)
-        throw new PlainError(`"slice" needs whole positions, but got ${fmtNumber(x)}.`, n.tok,
+        throw new RogalError(`"slice" needs whole positions, but got ${fmtNumber(x)}.`, n.tok,
           { hint: `Positions count 1, 2, 3. For example: slice("hello", 2, 4) gives "ell".` });
     }
     if (from < 1)
-      throw new PlainError(`"slice" starts counting at 1, but was asked to start at ${fmtNumber(from)}.`, n.tok);
+      throw new RogalError(`"slice" starts counting at 1, but was asked to start at ${fmtNumber(from)}.`, n.tok);
     const last = Math.min(to, thing.length);
     if (from > thing.length || last < from) return Array.isArray(thing) ? [] : "";
     return thing.slice(from - 1, last);
@@ -1445,7 +1445,7 @@ function installBuiltins(scope, interp) {
     need(a, 3, "replace", n);
     for (const x of a) expectText(x, "replace", n);
     if (a[1] === "")
-      throw new PlainError(`"replace" needs something to look for, but was given empty text.`, n.tok);
+      throw new RogalError(`"replace" needs something to look for, but was given empty text.`, n.tok);
     return a[0].split(a[1]).join(a[2]);
   });
 
@@ -1453,7 +1453,7 @@ function installBuiltins(scope, interp) {
     need(a, 2, "find", n);
     expectText(a[0], "find", n); expectText(a[1], "find", n);
     if (a[1] === "")
-      throw new PlainError(`"find" needs something to look for, but was given empty text.`, n.tok);
+      throw new RogalError(`"find" needs something to look for, but was given empty text.`, n.tok);
     const at = a[0].indexOf(a[1]);
     return at === -1 ? null : at + 1;
   });
@@ -1471,9 +1471,9 @@ function installBuiltins(scope, interp) {
   def("decimals", ["number", "places"], (a, n) => {
     need(a, 2, "decimals", n);
     if (typeof a[0] !== "number")
-      throw new PlainError(`"decimals" needs a number, but got ${describeValue(a[0])}.`, n.tok);
+      throw new RogalError(`"decimals" needs a number, but got ${describeValue(a[0])}.`, n.tok);
     if (typeof a[1] !== "number" || Math.floor(a[1]) !== a[1] || a[1] < 0 || a[1] > 15)
-      throw new PlainError(`"decimals" needs a whole number of places from 0 to 15, but got ${describeValue(a[1])}.`, n.tok,
+      throw new RogalError(`"decimals" needs a whole number of places from 0 to 15, but got ${describeValue(a[1])}.`, n.tok,
         { hint: `For example: decimals(17.1, 2) gives "17.10".` });
     return roundTo(a[0], a[1]).toFixed(a[1]);
   });
@@ -1482,15 +1482,15 @@ function installBuiltins(scope, interp) {
     need(a, 2, "numbers", n);
     for (const x of a) {
       if (typeof x !== "number")
-        throw new PlainError(`"numbers" needs two numbers, but got ${describeValue(x)}.`, n.tok);
+        throw new RogalError(`"numbers" needs two numbers, but got ${describeValue(x)}.`, n.tok);
       if (Math.floor(x) !== x)
-        throw new PlainError(`"numbers" needs whole numbers, but got ${fmtNumber(x)}.`, n.tok,
+        throw new RogalError(`"numbers" needs whole numbers, but got ${fmtNumber(x)}.`, n.tok,
           { hint: `For example: numbers(1, 10)` });
     }
     const [from, to] = a;
     if (to < from) return [];
     if (to - from + 1 > 1000000)
-      throw new PlainError(`"numbers" was asked for ${fmtNumber(to - from + 1)} of them, which is more than a million.`, n.tok,
+      throw new RogalError(`"numbers" was asked for ${fmtNumber(to - from + 1)} of them, which is more than a million.`, n.tok,
         { hint: `Use a "while" loop if you really need to count that far.` });
     const out = [];
     for (let i = from; i <= to; i++) out.push(i);
@@ -1499,7 +1499,7 @@ function installBuiltins(scope, interp) {
 
   def("keys", ["record"], (a, n) => {
     need(a, 1, "keys", n);
-    if (!isRecord(a[0])) throw new PlainError(`"keys" needs a record, but got ${describeValue(a[0])}.`, n.tok);
+    if (!isRecord(a[0])) throw new RogalError(`"keys" needs a record, but got ${describeValue(a[0])}.`, n.tok);
     return Object.keys(a[0].fields);
   });
 }
@@ -1533,7 +1533,7 @@ function installKernel(scope, host) {
   // letting an internal error escape halfway through someone's program.
   for (const needed of ["read", "write", "get", "ask", "now"]) {
     if (typeof host[needed] !== "function")
-      throw new Error(`This copy of Plain was started without a way to "${needed}". All five of read, write, get, ask and now are required.`);
+      throw new Error(`This copy of Rogal was started without a way to "${needed}". All five of read, write, get, ask and now are required.`);
   }
 
   def("read", ["name"], async (a, n) => {
@@ -1544,8 +1544,8 @@ function installKernel(scope, host) {
     // rather than handing back a page of nonsense.
     const sample = content.slice(0, 4096);
     if (sample.includes("\u0000") || /\uFFFD/.test(sample))
-      throw new PlainError(`"${a[0]}" isn't a text file, so there's nothing readable in it.`, n.tok,
-        { hint: `Plain reads text: .txt, .csv, .json and the like. Things such as PDFs, images and spreadsheets need to be exported to text first.` });
+      throw new RogalError(`"${a[0]}" isn't a text file, so there's nothing readable in it.`, n.tok,
+        { hint: `Rogal reads text: .txt, .csv, .json and the like. Things such as PDFs, images and spreadsheets need to be exported to text first.` });
     return content;
   });
 
@@ -1553,7 +1553,7 @@ function installKernel(scope, host) {
     need(a, 2, "write", n);
     expectText(a[0], "write", n);
     if (typeof a[1] !== "string")
-      throw new PlainError(`"write" needs text to write, but got ${describeValue(a[1])}.`, n.tok,
+      throw new RogalError(`"write" needs text to write, but got ${describeValue(a[1])}.`, n.tok,
         { hint: `Use join(...) to turn a list into text, or text(...) for a single value.` });
     return await host.write(a[0], a[1], n);
   });
@@ -1563,7 +1563,7 @@ function installKernel(scope, host) {
     expectText(a[0], "ask", n);
     const answer = await host.ask(a[0], n);
     if (typeof answer !== "string")
-      throw new PlainError(`"ask" expected an answer in text.`, n.tok);
+      throw new RogalError(`"ask" expected an answer in text.`, n.tok);
     return answer;
   });
 
@@ -1576,7 +1576,7 @@ function installKernel(scope, host) {
     need(a, 1, "get", n);
     expectText(a[0], "get", n);
     if (!/^https?:\/\//i.test(a[0]))
-      throw new PlainError(`"get" needs a web address starting with https://, but got ${JSON.stringify(a[0])}.`, n.tok);
+      throw new RogalError(`"get" needs a web address starting with https://, but got ${JSON.stringify(a[0])}.`, n.tok);
     return await host.get(a[0], n);
   });
 }
@@ -1585,7 +1585,7 @@ function installKernel(scope, host) {
 function installAbsentKernel(scope, why) {
   for (const name of ["read", "write", "get", "ask", "now"]) {
     scope.define(name, effect(name, ["..."], (a, n) => {
-      throw new PlainError(`"${name}" needs somewhere to reach, and there isn't one here.`, n.tok, { hint: why });
+      throw new RogalError(`"${name}" needs somewhere to reach, and there isn't one here.`, n.tok, { hint: why });
     }));
   }
 }
@@ -1602,20 +1602,20 @@ async function gatherLibraries(program, host, seen, chain) {
     const name = st.name;
 
     if (chain.includes(name))
-      throw new PlainError(`"${name}" ends up using itself.`, st.nameTok,
+      throw new RogalError(`"${name}" ends up using itself.`, st.nameTok,
         { hint: `The chain was: ${chain.concat(name).join(" → ")}. A library can't depend on itself, directly or in a circle.` });
     if (seen.has(name)) continue;
     seen.add(name);
 
     if (!host || typeof host.library !== "function")
-      throw new PlainError(`"use" needs somewhere to find "${name}", and there isn't one here.`, st.nameTok,
-        { hint: `Run Plain on your computer, where it can look for ${name}.plain next to your program.` });
+      throw new RogalError(`"use" needs somewhere to find "${name}", and there isn't one here.`, st.nameTok,
+        { hint: `Run Rogal on your computer, where it can look for ${name}.rogal next to your program.` });
 
     const text = await host.library(name, st);
     let inner;
     try { inner = new Parser(tokenise(text)).parseProgram(); }
     catch (e) {
-      if (e && e.plain) e.message = `In "${name}.plain", line ${e.line}: ${e.message}`;
+      if (e && e.rogal) e.message = `In "${name}.rogal", line ${e.line}: ${e.message}`;
       throw e;
     }
     const nested = await gatherLibraries(inner, host, seen, chain.concat(name));
@@ -1623,8 +1623,8 @@ async function gatherLibraries(program, host, seen, chain) {
     for (const s2 of inner.body) {
       if (s2.kind === "make") collected.push({ from: name, node: s2 });
       else if (s2.kind !== "use")
-        throw new PlainError(`"${name}.plain" has a line that isn't an action.`, st.nameTok,
-          { hint: `A library holds only "make" blocks and its own "use" lines. Line ${s2.tok ? s2.tok.line : "?"} of ${name}.plain is something else.` });
+        throw new RogalError(`"${name}.rogal" has a line that isn't an action.`, st.nameTok,
+          { hint: `A library holds only "make" blocks and its own "use" lines. Line ${s2.tok ? s2.tok.line : "?"} of ${name}.rogal is something else.` });
     }
   }
   return collected;
@@ -1636,20 +1636,20 @@ async function run(source, host) {
     const program = new Parser(tokenise(source)).parseProgram();
     const interp = new Interpreter(line => {
       output.push(line);
-      if (output.length > 2000) throw new PlainError("This program showed more than 2000 lines, so I stopped it.", null);
+      if (output.length > 2000) throw new RogalError("This program showed more than 2000 lines, so I stopped it.", null);
     });
     const libraries = await gatherLibraries(program, host, new Set(), []);
     for (const { from, node } of libraries) {
       if (interp.globals.vars.has(node.name))
-        throw new PlainError(`Two actions are called "${node.name}".`, node.nameTok,
-          { hint: `One comes from ${from}.plain. Rename one of them.` });
+        throw new RogalError(`Two actions are called "${node.name}".`, node.nameTok,
+          { hint: `One comes from ${from}.rogal. Rename one of them.` });
       interp.globals.define(node.name,
         { __action: true, name: node.name, params: node.params, body: node.body });
     }
 
     if (host) installKernel(interp.builtins, host);
     else installAbsentKernel(interp.builtins,
-      "Plain is running somewhere with no files and no network. Run it on your computer, or in the playground use the version that can ask you for a file.");
+      "Rogal is running somewhere with no files and no network. Run it on your computer, or in the playground use the version that can ask you for a file.");
     await interp.run(program);
     return { output, error: null };
   } catch (e) {
@@ -1657,14 +1657,14 @@ async function run(source, host) {
       return { output, error: { line: 1, col: 1, len: 1, message: `"give" only works inside an action made with "make".`, hint: null, fix: null } };
     if (e instanceof StopSignal)
       return { output, error: { line: 1, col: 1, len: 1, message: `"stop" only works inside a loop.`, hint: null, fix: null } };
-    if (e && e.plain)
+    if (e && e.rogal)
       return { output, error: { line: e.line, col: e.col, len: e.len, message: e.message, hint: e.hint, fix: e.fix } };
     if (e instanceof RangeError || /call stack|too much recursion|stack size/i.test(String(e && e.message)))
       return { output, error: { line: 1, col: 1, len: 1,
         message: "This program nested too deeply and had to be stopped.",
-        hint: "An action is calling itself, or calls are nested further than Plain can follow.", fix: null } };
-    return { output, error: { line: 1, col: 1, len: 1, message: "Something went wrong inside Plain: " + e.message, hint: null, fix: null } };
+        hint: "An action is calling itself, or calls are nested further than Rogal can follow.", fix: null } };
+    return { output, error: { line: 1, col: 1, len: 1, message: "Something went wrong inside Rogal: " + e.message, hint: null, fix: null } };
   }
 }
 
-if (typeof module !== "undefined") module.exports = { run, PLAIN_VERSION, makeRecord, momentRecord };
+if (typeof module !== "undefined") module.exports = { run, ROGAL_VERSION, makeRecord, momentRecord };

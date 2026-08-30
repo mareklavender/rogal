@@ -1,10 +1,10 @@
-# Plain
+# Rogal
 
 A small programming language that's genuinely easy to write, where a mistake tells you what to do about it instead of what went wrong inside the machine.
 
 30 words. One way to write each thing. Blocks close with `end`, so indentation can never break a program. Comparisons are words, so `=` and `==` can't be muddled. And when something goes wrong you get the line, the word underlined, a sentence explaining it, and often a button that fixes it.
 
-```plain
+```rogal
 set prices to [12.4, 8.9, 31.2]
 set total to 0
 
@@ -21,22 +21,22 @@ Average: 17.5
 
 Small enough to hold in your head, and solid enough to write real scripts in. That makes it a good first language, and a reasonable one to stay with.
 
-**Status:** working prototype, v0.7.1. **The name is a placeholder** — it hasn't been decided, and the repo will be renamed when it is.
+**Status:** working prototype, v0.8.0. **The name is a placeholder** — it hasn't been decided, and the repo will be renamed when it is.
 
 ---
 
 ## Trying it
 
-Open **`plain.html`** in a browser. That's it — nothing to install, and the playground has examples and a reference built in.
+Open **`rogal.html`** in a browser. That's it — nothing to install, and the playground has examples and a reference built in.
 
 Better still, put it on the web and use a link. See *Sharing it* below.
 
 ## Running programs against real files
 
-The browser version can read a file you pick and hand one back as a download. For a program that opens files by name, you'll need [Node.js](https://nodejs.org) installed, with `plain-core.js` and `plain.js` in a folder together:
+The browser version can read a file you pick and hand one back as a download. For a program that opens files by name, you'll need [Node.js](https://nodejs.org) installed, with `rogal-core.js` and `rogal.js` in a folder together:
 
 ```
-node plain.js myscript.plain
+node rogal.js myscript.rogal
 ```
 
 Files are read and written next to the script, not next to wherever your terminal happens to be.
@@ -45,37 +45,38 @@ Files are read and written next to the script, not next to wherever your termina
 
 | File | What it is |
 |---|---|
-| [`plain-core.js`](plain-core.js) | The language itself — tokeniser, parser, interpreter. Edit this. |
-| [`plain-ui.html`](plain-ui.html) | The playground page. Edit this. |
-| [`plain-reference.md`](plain-reference.md) | The reference. Edit this. |
-| [`build.js`](build.js) | Squashes the first two into `plain.html`. |
+| [`rogal-core.js`](rogal-core.js) | The language itself — tokeniser, parser, interpreter. Edit this. |
+| [`rogal-ui.html`](rogal-ui.html) | The playground page. Edit this. |
+| [`rogal-reference.md`](rogal-reference.md) | The reference. Edit this. |
+| [`build.js`](build.js) | Squashes the first two into `rogal.html`. |
 | [`make-pdf.py`](make-pdf.py) | Turns the reference into a PDF. Needs pandoc, wkhtmltopdf, reportlab, pypdf. |
 | [`test.js`](test.js) | 140 checks, including the kernel against a stand-in host. |
 | [`CHANGELOG.md`](CHANGELOG.md) | What changed in each version. |
-| [`plain.js`](plain.js) | The command-line runner. |
-| [`dates.plain`](dates.plain) | A date library, written in Plain. Bring it in with `use "dates"`. |
-| `plain.html` | **Generated.** The one file to share. Don't edit it. |
+| [`.gitignore`](.gitignore) | Keeps `.DS_Store` and build output out of the repository. |
+| [`rogal.js`](rogal.js) | The command-line runner. |
+| [`dates.rogal`](dates.rogal) | A date library, written in Rogal. Bring it in with `use "dates"`. |
+| `rogal.html` | **Generated.** The one file to share. Don't edit it. |
 
 Three sources, one thing to hand out. The split means a change to the language shows up as a few lines in the history, rather than a whole rewritten page.
 
 ```
 node test.js      # check nothing broke
-node build.js     # make plain.html
+node build.js     # make rogal.html
 ```
 
 Run the tests first, always. They catch the mistakes that are easy to make and hard to spot — a helpful error that quietly stops firing, a built-in that starts modifying what you gave it.
 
-The version lives in one place, the top of `plain-core.js`:
+The version lives in one place, the top of `rogal-core.js`:
 
 ```js
-const PLAIN_VERSION = "0.7.1";
+const ROGAL_VERSION = "0.8.0";
 ```
 
 The build stamps it into the page, so the two can't drift apart. Bump it whenever the language changes.
 
 ## Sharing it
 
-Send a **link**, not the file. iOS won't run JavaScript in local HTML, so anyone opening `plain.html` from Files, Mail or a cloud drive on an iPhone gets a dead page — no examples, no Run button.
+Send a **link**, not the file. iOS won't run JavaScript in local HTML, so anyone opening `rogal.html` from Files, Mail or a cloud drive on an iPhone gets a dead page — no examples, no Run button.
 
 **Cloud storage doesn't help.** Dropbox, iCloud, Google Drive and Proton Drive all show you a preview rather than serving the page, so JavaScript stays blocked and you get the same dead page. It needs real hosting.
 
@@ -89,7 +90,7 @@ On an iPhone with no hosting, **Documents by Readdle** has a proper browser insi
 
 ## How it's put together
 
-The reasoning behind these is in the [reference](plain-reference.md), also available as a [PDF](plain-reference.pdf).
+The reasoning behind these is in the [reference](rogal-reference.md), also available as a [PDF](rogal-reference.pdf).
 
 - **`set` creates, `change` alters.** A typo can't quietly make a second variable.
 - **A name holds a value, not a link to someone else's.** Every binding copies, so two names never share a list by accident.

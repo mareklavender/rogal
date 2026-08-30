@@ -1,30 +1,30 @@
 #!/usr/bin/env python3
-"""Typesets plain-reference.md as a printable PDF manual."""
+"""Typesets rogal-reference.md as a printable PDF manual."""
 
 import re, subprocess, sys, html as htmlmod
 from datetime import date
 
-SRC = "plain-reference.md"
+SRC = "rogal-reference.md"
 MID = "reference.html"
-OUT = "/mnt/user-data/outputs/plain-reference.pdf"
+OUT = "/mnt/user-data/outputs/rogal-reference.pdf"
 
 KEYWORDS = ["set","change","to","show","if","else","end","for","each","in","repeat","times",
-            "while","make","give","is","not","and","or","true","false","nothing",
+            "while","make","give","use","is","not","and","or","true","false","nothing",
             "more","less","than","at","most","least","stop"]
 BUILTINS = ["count","add","remove","first","last","reverse","has","sum","sort_up","sort_down",
             "join","split","upper","lower","trim","round","random","text","number","keys","numbers","reverse","sort_up","sort_down","read","write","get","ask","now","slice","replace","find","align_left","align_right","decimals"]
 
 version = "0.2.0"
 try:
-    core = open("plain-core.js").read()
-    m = re.search(r'const PLAIN_VERSION\s*=\s*"([^"]+)"', core)
+    core = open("rogal-core.js").read()
+    m = re.search(r'const ROGAL_VERSION\s*=\s*"([^"]+)"', core)
     if m: version = m.group(1)
 except FileNotFoundError:
     pass
 
 
 def highlight(code):
-    """Colours Plain source: comments, text, keywords, built-ins, numbers."""
+    """Colours Rogal source: comments, text, keywords, built-ins, numbers."""
     out, i = [], 0
     tokens = []
     for mo in re.finditer(r'(#[^\n]*)|("(?:[^"\\\n]|\\.)*")|(\b[A-Za-z_][A-Za-z0-9_]*\b)|(\b\d+(?:\.\d+)?\b)', code):
@@ -68,7 +68,7 @@ def finish(src, dest, version, sections):
             c = canvas.Canvas(buf, pagesize=A4)
             c.setFont("Courier", 7)
             c.setFillColor(HexColor("#8E7FC9"))
-            c.drawString(51, 30, f"Plain  v{version}")
+            c.drawString(51, 30, f"Rogal  v{version}")
             c.drawRightString(A4[0] - 51, 30, f"{i + 1} / {total}")
             c.setStrokeColor(HexColor("#d8d2e8"))
             c.setLineWidth(0.4)
@@ -92,9 +92,9 @@ def finish(src, dest, version, sections):
                 break
 
     writer.add_metadata({
-        "/Title": f"Plain — Language Reference v{version}",
-        "/Subject": "Complete reference for the Plain programming language",
-        "/Creator": "Plain",
+        "/Title": f"Rogal — Language Reference v{version}",
+        "/Subject": "Complete reference for the Rogal programming language",
+        "/Creator": "Rogal",
     })
     with open(dest, "wb") as f:
         writer.write(f)
@@ -106,12 +106,12 @@ frag = subprocess.run(
     ["pandoc", SRC, "-f", "gfm", "-t", "html", "--no-highlight"],
     capture_output=True, text=True, check=True).stdout
 
-# colour the Plain code blocks
+# colour the Rogal code blocks
 def colour_block(mo):
-    return '<pre class="plain"><code>' + highlight(htmlmod.unescape(mo.group(1))) + "</code></pre>"
+    return '<pre class="rogal"><code>' + highlight(htmlmod.unescape(mo.group(1))) + "</code></pre>"
 
-frag = re.sub(r'<pre class="plain"><code>(.*?)</code></pre>', colour_block, frag, flags=re.S)
-frag = re.sub(r'<pre><code class="language-plain">(.*?)</code></pre>', colour_block, frag, flags=re.S)
+frag = re.sub(r'<pre class="rogal"><code>(.*?)</code></pre>', colour_block, frag, flags=re.S)
+frag = re.sub(r'<pre><code class="language-rogal">(.*?)</code></pre>', colour_block, frag, flags=re.S)
 frag = re.sub(r'<pre><code>(.*?)</code></pre>',
               lambda m: '<pre class="out"><code>' + m.group(1) + "</code></pre>", frag, flags=re.S)
 
@@ -173,7 +173,7 @@ code { font-family: "DejaVu Sans Mono", monospace; font-size: 8.6pt;
        color: #4A3796; background: #F0EDF7; padding: .3mm 1mm; border-radius: 1pt; }
 pre { page-break-inside: avoid; margin: 3mm 0 4mm; }
 pre code { background: none; padding: 0; color: #241E33; font-size: 8.6pt; line-height: 1.45; }
-pre.plain { background: #F6F4FA; border-left: 2.5pt solid #4A3796; padding: 3mm 4mm; }
+pre.rogal { background: #F6F4FA; border-left: 2.5pt solid #4A3796; padding: 3mm 4mm; }
 pre.out { background: #fff; border: .5pt solid #d8d2e8; padding: 3mm 4mm; color: #4a4459; }
 pre.out code { color: #4a4459; }
 
@@ -207,14 +207,14 @@ page = f"""<!DOCTYPE html>
 
 <div class="title-page">
   <p class="tp-eyebrow">Language reference · version {version}</p>
-  <h1 class="tp-name" style="display:block">Plain</h1>
+  <h1 class="tp-name" style="display:block">Rogal</h1>
   <hr class="tp-rule">
-  <p class="tp-stand">Twenty-nine words, one way to write each thing, and a mistake tells you
+  <p class="tp-stand">Thirty words, one way to write each thing, and a mistake tells you
   <em>what to do about it</em> instead of what went wrong inside the machine.</p>
   <p class="tp-stand" style="font-size:10.5pt;color:#4a4459">Everything the language has is in here:
-  all 29 words and all 30 built-in actions, with a list of the lot at the end.</p>
+  all 30 words and all 32 actions, with a list of the lot at the end.</p>
   <div class="tp-meta">
-    <b>29</b> words &nbsp;·&nbsp; <b>30</b> built-in actions &nbsp;·&nbsp; browser or terminal<br>
+    <b>30</b> words &nbsp;·&nbsp; <b>32</b> actions &nbsp;·&nbsp; browser or terminal<br>
     Generated {date.today().strftime('%-d %B %Y')}
   </div>
 </div>

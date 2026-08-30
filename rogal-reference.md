@@ -1,8 +1,8 @@
-# Plain — Language Reference
+# Rogal — Language Reference
 
-**Version 0.7.1** · Complete. Every word the language has is in this document.
+**Version 0.8** · Complete. Every word the language has is in this document.
 
-Plain has 30 words and 32 actions — 27 built in, and 5 that reach outside the program. That's the whole language: nothing to install and nothing to import.
+Rogal has 30 words and 32 actions — 27 built in, and 5 that reach outside the program. That's the whole language: nothing to install and nothing to import.
 
 ---
 
@@ -12,14 +12,14 @@ Two ways, depending on what you're doing.
 
 ### In a browser
 
-Open `plain.html`. Nothing to install, and the examples and a short reference are built into the page. This is the whole of Plain apart from reading files automatically — `read` asks you to pick one instead, and `write` hands one back as a download.
+Open `rogal.html`. Nothing to install, and the examples and a short reference are built into the page. This is the whole of Rogal apart from reading files automatically — `read` asks you to pick one instead, and `write` hands one back as a download.
 
 ### On your computer
 
-For programs that read and write files by name, you'll need [Node.js](https://nodejs.org) installed. Put `plain-core.js` and `plain.js` in a folder together, write your program beside them, and run it:
+For programs that read and write files by name, you'll need [Node.js](https://nodejs.org) installed. Put `rogal-core.js` and `rogal.js` in a folder together, write your program beside them, and run it:
 
 ```
-node plain.js myprogram.plain
+node rogal.js myprogram.rogal
 ```
 
 This is the only way to have a program open a file it names for itself, rather than one you pick.
@@ -28,7 +28,7 @@ This is the only way to have a program open a file it names for itself, rather t
 
 Files are read and written **next to your program**, not next to wherever your terminal happens to be. So a program in `~/work` reading `stock.csv` looks in `~/work`, whichever folder you ran it from.
 
-`use "dates"` looks for `dates.plain` next to your program first, then next to Plain itself — so a library you use everywhere can sit beside `plain.js` instead of being copied about.
+`use "dates"` looks for `dates.rogal` next to your program first, then next to Rogal itself — so a library you use everywhere can sit beside `rogal.js` instead of being copied about.
 
 ### Which to use
 
@@ -38,7 +38,7 @@ The browser is the whole language and needs nothing at all, so start there and s
 
 A program is a list of instructions, one per line, run from top to bottom.
 
-```plain
+```rogal
 set name to "Mark"
 show "Hello, " + name
 ```
@@ -50,7 +50,7 @@ Four rules cover all of it:
 - **`#` starts a note.** Everything after it on that line is ignored.
 - **Blank lines mean nothing.** Use them freely.
 
-```plain
+```rogal
 # This is a note. The line below is not.
 set total to 0
 ```
@@ -61,7 +61,7 @@ set total to 0
 
 `end` doesn't mean "the program stops here". It means **this block stops here** — and moving one changes what a program does.
 
-```plain
+```rogal
 for each word in words
   if count(word) is more than 3
     change best to word
@@ -70,7 +70,7 @@ for each word in words
 end
 ```
 
-```plain
+```rogal
 for each word in words
   if count(word) is more than 3
     change best to word
@@ -81,11 +81,11 @@ show "finished"
 
 The first prints a line for every long word. The second prints one line, once, after the loop has finished. Nothing else differs — only where the `end`s sit.
 
-Since Plain ignores indentation, `end` is the only thing marking where a block stops. That's why `else` and `end` each need a line of their own: so the shape you see is the shape that runs.
+Since Rogal ignores indentation, `end` is the only thing marking where a block stops. That's why `else` and `end` each need a line of their own: so the shape you see is the shape that runs.
 
 **One `end` for every opener** — every `make`, `if`, `for each`, `while` and `repeat`. Ten simple actions need ten `end`s, one each. What multiplies them is nesting, not quantity:
 
-```plain
+```rogal
 make longest(words)                            ← opens
   set best to ""
   for each word in words                       ← opens
@@ -101,7 +101,7 @@ Three `end`s because three things sit inside one another. Read them from the bot
 
 If a program ever needs four or five levels, that's usually a sign it wants splitting into separate actions. The pile of `end`s is a useful warning rather than a nuisance.
 
-Leave one out and Plain says how many blocks were opened, how many `end`s it found, and which block the last one closed.
+Leave one out and Rogal says how many blocks were opened, how many `end`s it found, and which block the last one closed.
 
 ## 2. The six kinds of value
 
@@ -132,11 +132,11 @@ Each pair does one job. Mixing them up is the most common early mistake, so it's
 
 Two traps catch nearly everyone.
 
-**Round brackets don't make a list.** `(1, 2, 3)` is an error, and Plain will offer to rewrite it as `[1, 2, 3]`.
+**Round brackets don't make a list.** `(1, 2, 3)` is an error, and Rogal will offer to rewrite it as `[1, 2, 3]`.
 
 **Square brackets build a new list. They don't mark where one goes.** If you already have a list, hand it over as it is:
 
-```plain
+```rogal
 set a to [1, 2]
 set b to [3]
 
@@ -150,25 +150,25 @@ show join([a + b], "-")    # wrong: a list holding one list
 
 `set` creates a name. `change` gives an existing one a new value. They are separate on purpose, so a typo can never quietly create a second variable.
 
-```plain
+```rogal
 set total to 0          # create
 change total to 5       # alter
 ```
 
 Each fails clearly if used the wrong way round:
 
-```plain
+```rogal
 set total to 0
 set total to 5
 ```
 > Line 2: `total` already exists. To give it a new value, use `change total to 5`.
 
-```plain
+```rogal
 change score to 10
 ```
 > Line 1: There's nothing called `score` to change. Create it first with `set score to 10`.
 
-```plain
+```rogal
 set total to 0
 change totl to total + 5
 ```
@@ -176,11 +176,11 @@ change totl to total + 5
 
 That last one is the point of the whole design. In most languages it silently makes a second variable and the bug surfaces much later.
 
-There is no `=` in Plain, so `=` and `==` can never be confused.
+There is no `=` in Rogal, so `=` and `==` can never be confused.
 
 **One name means one thing.** `set` fails if the name is already in use anywhere you can see it, including the built-in actions:
 
-```plain
+```rogal
 set count to 3
 ```
 > Line 1: `count` is already the name of a built-in action.
@@ -191,7 +191,7 @@ All 32 action names are taken, so `set count to 0` won't work — `count` is alr
 
 `change` also reaches inside lists and records:
 
-```plain
+```rogal
 set xs to [10, 20, 30]
 change xs[2] to 99         # xs is now [10, 99, 30]
 
@@ -206,7 +206,7 @@ change p.city to "London"  # adds a new field
 
 Giving one name to another copies the value. The two are then independent:
 
-```plain
+```rogal
 set prices to [10, 20, 30]
 set backup to prices
 
@@ -220,7 +220,7 @@ Numbers and text have always worked this way — `set b to a` then changing `a` 
 
 The same is true when a value goes into an action, which is what makes an action properly sealed:
 
-```plain
+```rogal
 set data to [1, 2, 3]
 
 make wreck(xs)
@@ -238,7 +238,7 @@ If you want two names to match again later, say so — `change backup to prices`
 
 ## 5. `show` — displaying something
 
-```plain
+```rogal
 show "Hello"
 show 42
 show total
@@ -246,7 +246,7 @@ show total
 
 Several values separated by commas appear on one line, with a space between:
 
-```plain
+```rogal
 set prices to [10, 20]
 show "How many:", count(prices), "Total:", sum(prices)
 ```
@@ -268,7 +268,7 @@ An **expression** is anything that produces a value: a number, some text, a name
 
 So `count(prices)` produces a number, and can go anywhere a number can go:
 
-```plain
+```rogal
 show count(prices)                        # in a show
 set how_many to count(prices)             # in a set
 if count(prices) is more than 3           # in a test
@@ -278,13 +278,13 @@ set doubled to count(prices) * 2          # in arithmetic
 
 Actions can go inside other actions. Read them from the inside out:
 
-```plain
+```rogal
 show first(sort_up(prices))
 # sort_up(prices) gives an ordered list
 # first(...) then takes its first item
 ```
 
-```plain
+```rogal
 show round(sum(prices) / count(prices))
 # sum gives a total, count gives how many,
 # / divides them, round makes it whole
@@ -294,7 +294,7 @@ Nest as deeply as you like. There is no limit and no special syntax for it.
 
 **What does not combine:** a statement can never go inside an expression. These are all wrong:
 
-```plain
+```rogal
 set x to show 5            # show is a statement, not a value
 set x to (set y to 2)      # set is a statement, not a value
 show if true               # if is a statement, not a value
@@ -313,7 +313,7 @@ show if true               # if is a statement, not a value
 
 ## 7. Arithmetic and joining
 
-```plain
+```rogal
 show 10 + 5      # 15
 show 10 - 5      # 5
 show 10 * 5      # 50
@@ -323,7 +323,7 @@ show 10 % 3      # 1   — the remainder after dividing
 
 `+` does three jobs, depending on what is on either side:
 
-```plain
+```rogal
 show 2 + 3                 # 5          number plus number
 show "a" + "b"             # ab         text joined to text
 show "Total: " + 30        # Total: 30  number folded into text
@@ -351,7 +351,7 @@ Comparisons are words, never symbols. Typing `>` or `==` gets you an error telli
 | `is at least` | bigger or the same |
 | `is at most` | smaller or the same |
 
-```plain
+```rogal
 if score is 10
 if name is not "Ada"
 if age is at least 18
@@ -359,13 +359,13 @@ if age is at least 18
 
 `is` compares by content, so two lists with the same items match:
 
-```plain
+```rogal
 show [1, 2] is [1, 2]      # true
 ```
 
 Sizes can be compared for numbers, and for text alphabetically. **Capital letters and accents are ignored when ordering**, so text sorts the way a dictionary does:
 
-```plain
+```rogal
 show "apple" is less than "Banana"    # true
 show sort_up(["banana", "Apple"])     # ["Apple", "banana"]
 ```
@@ -378,13 +378,13 @@ Comparing sizes of anything else is an error, with a message pointing you at `is
 
 ## 9. Logic and conditions
 
-```plain
+```rogal
 and    both must be true
 or     either may be true
 not    turns true into false
 ```
 
-```plain
+```rogal
 if age is at least 18 and name is not ""
   show "Allowed"
 end
@@ -394,16 +394,16 @@ if not (score is 0)
 end
 ```
 
-Everything must be true or false. There is no truthiness — an empty list, zero, and empty text are **not** false in Plain, they are simply not conditions:
+Everything must be true or false. There is no truthiness — an empty list, zero, and empty text are **not** false in Rogal, they are simply not conditions:
 
-```plain
+```rogal
 if count(xs) is more than 0     # correct
 if xs                           # error, with a message telling you the above
 ```
 
 ### `if`, `else if`, `else`
 
-```plain
+```rogal
 if score is at least 9
   show "Publish"
 else if score is at least 7
@@ -421,7 +421,7 @@ One `end` closes the whole chain. `else if` may repeat as many times as you like
 
 ### `for each` — go through a list
 
-```plain
+```rogal
 for each price in prices
   show price
 end
@@ -429,7 +429,7 @@ end
 
 Also works on text, one letter at a time:
 
-```plain
+```rogal
 for each letter in "abc"
   show letter
 end
@@ -437,7 +437,7 @@ end
 
 For a record, go through its field names:
 
-```plain
+```rogal
 for each field in keys(person)
   show field
 end
@@ -445,7 +445,7 @@ end
 
 ### `repeat` — a fixed number of times
 
-```plain
+```rogal
 repeat 3 times
   show "tick"
 end
@@ -455,7 +455,7 @@ The count must be a whole number. `repeat 2.7 times` is an error rather than a s
 
 ### `while` — until a test stops being true
 
-```plain
+```rogal
 set n to 1
 while n is at most 5
   show n
@@ -465,7 +465,7 @@ end
 
 ### `stop` — leave a loop early
 
-```plain
+```rogal
 for each n in [1, 2, 3, 4]
   if n is 3
     stop
@@ -488,7 +488,7 @@ end
 
 `make` creates an action. `give` hands a value back.
 
-```plain
+```rogal
 make double(n)
   give n * 2
 end
@@ -498,7 +498,7 @@ show double(21)        # 42
 
 **An action sees only what you pass in.** It cannot read or alter anything outside itself, so its first line lists everything it uses:
 
-```plain
+```rogal
 set tax to 0.2
 make total(amount)
   give amount * (1 + tax)     # error — tax is outside
@@ -506,7 +506,7 @@ end
 ```
 > Line 3: `tax` exists outside this action, but actions can't see outside names. Pass it in instead.
 
-```plain
+```rogal
 make total(amount, tax)       # correct
   give amount * (1 + tax)
 end
@@ -517,7 +517,7 @@ Two useful consequences. Names are reusable — `n` can be an input to every act
 
 Actions can still call other actions, including themselves:
 
-```plain
+```rogal
 make factorial(n)
   if n is at most 1
     give 1
@@ -532,7 +532,7 @@ show factorial(6)      # 720
 
 Several inputs are separated by commas, and an action with no inputs still needs its brackets:
 
-```plain
+```rogal
 make greet()
   show "Hello"
 end
@@ -544,7 +544,7 @@ greet()
 
 Actions are values, so they can be stored and passed on:
 
-```plain
+```rogal
 make double(n)
   give n * 2
 end
@@ -560,7 +560,7 @@ show apply(double, 7)   # 14
 
 **Items count from 1.** The first item is `xs[1]`, matching how people already count.
 
-```plain
+```rogal
 set xs to ["a", "b", "c"]
 show xs[1]             # a
 show xs[3]             # c
@@ -572,7 +572,7 @@ Asking for a position that doesn't exist tells you how many there are. A positio
 
 A list may hold anything, including other lists and records:
 
-```plain
+```rogal
 set people to [
   {name: "Ada", born: 1815},
   {name: "Alan", born: 1912}
@@ -587,7 +587,7 @@ A list written across several lines needs no continuation marks, as above.
 
 Text also takes positions, giving one letter:
 
-```plain
+```rogal
 show "hello"[1]        # h
 ```
 
@@ -595,7 +595,7 @@ show "hello"[1]        # h
 
 ## 13. Records in detail
 
-```plain
+```rogal
 set person to {name: "Ada", born: 1815}
 show person.name       # Ada
 show keys(person)      # ["name", "born"]
@@ -606,14 +606,14 @@ Reading a field that doesn't exist lists the fields it does have, and suggests a
 
 Records nest, and are read with dots all the way down:
 
-```plain
+```rogal
 set config to {owner: {name: "Ada", city: "London"}}
 show config.owner.city      # London
 ```
 
 **A record's fields are fixed when you create it.** `change` can alter a field but never invent one:
 
-```plain
+```rogal
 set person to {name: "Ada"}
 change person.age to 36
 ```
@@ -625,7 +625,7 @@ So a misspelling is caught rather than quietly making a second field alongside t
 
 The dot needs a field you wrote down yourself. When the name is worked out while the program runs — counting words, grouping things, keeping a tally — use square brackets and text instead:
 
-```plain
+```rogal
 set counts to {}
 
 for each word in split("the cat the dog the cat", " ")
@@ -644,7 +644,7 @@ show counts["the"]       # 3
 
 Reading a name that isn't there is still an error, so check with `has` first when you're not sure. Declare everything the record will hold when you create it, using `nothing` for anything not known yet:
 
-```plain
+```rogal
 set person to {name: "Ada", age: nothing}
 change person.age to 36
 ```
@@ -674,7 +674,7 @@ Always available. Nothing to import. **None of them ever changes what you give t
 | `numbers(from, to)` | two whole numbers | a list counting from one to the other |
 | `join(list, separator)` | a list and some text | one piece of text |
 
-```plain
+```rogal
 set xs to [3, 1, 2]
 show sort_up(xs)              # [1, 2, 3]
 show sort_down(xs)            # [3, 2, 1]
@@ -688,7 +688,7 @@ show xs                       # [3, 1, 2, 4]
 
 `add` puts in **exactly one item**, whatever that item is. `+` **merges two lists**:
 
-```plain
+```rogal
 set xs to [1, 2]
 
 show add(xs, 3)         # [1, 2, 3]
@@ -700,7 +700,7 @@ show xs + [3, 4]        # [1, 2, 3, 4]    four items
 
 Counting makes the difference plain:
 
-```plain
+```rogal
 set names to ["Ada"]
 
 show count(add(names, ["Alan", "Grace"]))   # 2
@@ -711,7 +711,7 @@ If you're reaching for `add` with square brackets in the second slot, you almost
 
 Sorting records needs the field name in quotes:
 
-```plain
+```rogal
 set people to [
   {name: "Grace", born: 1906},
   {name: "Ada", born: 1815}
@@ -734,7 +734,7 @@ Misspelling the field is an error naming the fields that exist, with a one-tap c
 | `lower(text)` | text | text in lower case |
 | `trim(text)` | text | text without leading or trailing spaces |
 
-```plain
+```rogal
 show slice("programming", 1, 7)      # program
 show slice([1,2,3,4,5], 2, 4)        # [2, 3, 4]
 show replace("the cat sat", "cat", "dog")
@@ -755,7 +755,7 @@ show find("hello world", "world")    # 7
 
 `round` gives a number, and numbers drop trailing zeros — so `round(17.1, 2)` shows `17.1`. When you want `17.10`, you want text:
 
-```plain
+```rogal
 set items to [{name: "apple", price: 1.5}, {name: "watermelon", price: 12}]
 
 for each item in items
@@ -778,7 +778,7 @@ Neither aligning action ever truncates. Give it something wider than the width a
 | `round(number, places)` | a number and how many places | rounded to that many decimals |
 | `random(lowest, highest)` | two numbers | a whole number, either end possible |
 
-```plain
+```rogal
 show round(17.12345, 2)    # 17.12
 show round(2.5)            # 3
 show round(-2.5)           # -3   — same distance either side of zero
@@ -806,7 +806,7 @@ Five actions reach beyond the program itself:
 | `ask(question)` | something to ask | whatever the person types, as text |
 | `now()` | nothing | a record describing this moment |
 
-```plain
+```rogal
 set raw to read("stock.csv")
 set lines to split(trim(raw), "\n")
 show "Lines found:", count(lines)
@@ -818,7 +818,7 @@ write("report.txt", join(lines, "\n"))
 
 **They need a line of their own.** A kernel action can be a statement by itself, or the whole value after `set` or `change` — never buried inside a larger expression:
 
-```plain
+```rogal
 show read("stock.csv")              # no
 set raw to read("stock.csv")        # yes
 show raw
@@ -828,7 +828,7 @@ So the moment a program touches the outside world is visible on its own line, no
 
 `now()` gives a record rather than a lump of text to pick apart:
 
-```plain
+```rogal
 set moment to now()
 
 show moment.date        # 2026-08-22
@@ -850,13 +850,13 @@ Nine fields, so nothing needs pulling apart by hand:
 | `minute` | a number | `3` |
 | `second` | a number | `8` |
 
-`day` counts, `weekday` names — those are the two people mix up. `month` is a number too; `dates.plain` has `month_name` if you want "August". There's no am/pm, since `hour` runs 0 to 23, and everything is your computer's local time rather than UTC.
+`day` counts, `weekday` names — those are the two people mix up. `month` is a number too; `dates.rogal` has `month_name` if you want "August". There's no am/pm, since `hour` runs 0 to 23, and everything is your computer's local time rather than UTC.
 
-Dates written as `2026-08-22` sort and compare correctly on their own, because the biggest part comes first — so `sort_up` on a list of them does the right thing with no extra work. For counting days, moving forwards and naming months, `dates.plain` in the repository is a small library written in Plain that you can paste above your own code.
+Dates written as `2026-08-22` sort and compare correctly on their own, because the biggest part comes first — so `sort_up` on a list of them does the right thing with no extra work. For counting days, moving forwards and naming months, `dates.rogal` in the repository is a small library written in Rogal that you can paste above your own code.
 
 `ask` always gives back **text**, even when the person types a number — there's no way to know which they meant. So do sums with `number(...)`:
 
-```plain
+```rogal
 set age to ask("How old are you?")
 show number(age) * 2
 ```
@@ -867,7 +867,7 @@ Forget it and the error says where the text came from, with a button to wrap it:
 
 **They can't be used inside an action.** Read at the top of your program, pass the value in, and get a value back:
 
-```plain
+```rogal
 make count_lines(raw)
   give count(split(trim(raw), "\n"))
 end
@@ -876,21 +876,21 @@ set raw to read("stock.csv")
 show count_lines(raw)
 ```
 
-Every action you write is then free of surprises: same inputs, same result, no files touched. It also means a library written in Plain runs in a browser as happily as on a computer.
+Every action you write is then free of surprises: same inputs, same result, no files touched. It also means a library written in Rogal runs in a browser as happily as on a computer.
 
 `read` only reads text — `.txt`, `.csv`, `.json` and the like. Hand it a PDF, an image or a spreadsheet and it says so rather than giving back a page of nonsense.
 
 ### In a browser
 
-A web page has no file system, so `read` **asks you to pick a file** and `write` **hands one back as a download**. `ask` is a prompt box. The program is the same either way — you just pick the file instead of naming it. `get` works, but only for sites that permit it — a limit of web pages, not of Plain.
+A web page has no file system, so `read` **asks you to pick a file** and `write` **hands one back as a download**. `ask` is a prompt box. The program is the same either way — you just pick the file instead of naming it. `get` works, but only for sites that permit it — a limit of web pages, not of Rogal.
 
-If a file isn't chosen, or a site refuses, you get an ordinary Plain error explaining which.
+If a file isn't chosen, or a site refuses, you get an ordinary Rogal error explaining which.
 
 ## 16. Using another file
 
 An action you'll want twice belongs in its own file. `use` brings one in:
 
-```plain
+```rogal
 use "dates"
 
 set moment to now()
@@ -898,7 +898,7 @@ show long_date(moment.date)      # 29 August 2026
 show weekday("2026-12-25")       # Friday
 ```
 
-`dates.plain` sits next to your program, and every action it defines becomes available as though you'd written it yourself.
+`dates.rogal` sits next to your program, and every action it defines becomes available as though you'd written it yourself.
 
 **A library holds only actions.** `make` blocks, and `use` lines of its own — nothing else. A stray `show` in a library would run every time somebody included it, which is the kind of surprise the rest of the language works to avoid.
 
@@ -914,7 +914,7 @@ Using the same library twice does no harm; the second `use` is ignored.
 
 ### Where it looks
 
-On your computer, `use "dates"` looks for `dates.plain` next to your program, then next to Plain itself. In a browser there are no files, so only the libraries that travel with the page are available — `dates` is one of them, and anything else says so plainly.
+On your computer, `use "dates"` looks for `dates.rogal` next to your program, then next to Rogal itself. In a browser there are no files, so only the libraries that travel with the page are available — `dates` is one of them, and anything else says so plainly.
 
 ## 17. Order of operations
 
@@ -930,7 +930,7 @@ From loosest to tightest:
 
 So `2 + 3 * 4` is 14, and `a is 1 and b is 2` reads as expected. Use brackets whenever you'd rather not rely on remembering this:
 
-```plain
+```rogal
 show (2 + 3) * 4           # 20
 ```
 
@@ -942,7 +942,7 @@ Two rules cover all of it.
 
 **Each block keeps its own new names.** A name created inside an `if`, `for each`, `while` or `repeat` is forgotten at its `end`:
 
-```plain
+```rogal
 for each price in prices
   set found to price
 end
@@ -952,7 +952,7 @@ show found
 
 Which is exactly how to write it — create it outside, alter it inside:
 
-```plain
+```rogal
 set found to nothing
 for each price in prices
   change found to price
@@ -978,7 +978,7 @@ I don't know what "totl" is.
 There is something called "total". Did you mean that?
 ```
 
-The full set of things Plain will tell you:
+The full set of things Rogal will tell you:
 
 - an unknown name, with the closest name you did define (your own names are offered before built-ins)
 - a name that vanished at an `end`, naming the block it was created in
@@ -1018,7 +1018,7 @@ Six of these (`more`, `less`, `than`, `at`, `most`, `least`) only ever appear as
 
 **Symbols** — `+` `-` `*` `/` `%` `(` `)` `[` `]` `{` `}` `,` `.` `:` `"` `#`
 
-## 21. What Plain does not have yet
+## 21. What Rogal does not have yet
 
 The edges, so nothing catches you out:
 
@@ -1031,7 +1031,7 @@ The edges, so nothing catches you out:
 
 Everything in this document, used once:
 
-```plain
+```rogal
 # Work out which product line earned most last month.
 
 set lines to [

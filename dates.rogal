@@ -1,4 +1,4 @@
-# dates.plain — working with dates, written in Plain itself.
+# dates.rogal — working with dates, written in Rogal itself.
 #
 # Dates here are text in the form "2026-08-22". Written that way they
 # already sort and compare correctly, so this file only adds the parts

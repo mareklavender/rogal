@@ -1,19 +1,19 @@
-/* Fuses plain-core.js and plain-ui.html into a single shareable plain.html.
+/* Fuses rogal-core.js and rogal-ui.html into a single shareable rogal.html.
    Run with:  node build.js                                                  */
 
 const fs = require("fs");
 
-const CORE = "plain-core.js";
-const UI = "plain-ui.html";
-const OUT = "plain.html";
+const CORE = "rogal-core.js";
+const UI = "rogal-ui.html";
+const OUT = "rogal.html";
 
 function build() {
   const core = fs.readFileSync(CORE, "utf8");
   const ui = fs.readFileSync(UI, "utf8");
 
-  const found = core.match(/const PLAIN_VERSION\s*=\s*"([^"]+)"/);
+  const found = core.match(/const ROGAL_VERSION\s*=\s*"([^"]+)"/);
   if (!found) {
-    console.error(`No PLAIN_VERSION found in ${CORE}. Add: const PLAIN_VERSION = "0.0.0";`);
+    console.error(`No ROGAL_VERSION found in ${CORE}. Add: const ROGAL_VERSION = "0.0.0";`);
     process.exit(1);
   }
   const version = found[1];

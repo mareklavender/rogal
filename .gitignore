@@ -1,5 +1,20 @@
+# macOS leaves these in every folder Finder touches
 .DS_Store
+.AppleDouble
+._*
+
+# Editor and OS clutter
+.vscode/
+.idea/
+Thumbs.db
+
+# Build output that shouldn't live in the repository
 dist/
-plain-macos-*
-plain-linux-*
-plain-windows-*
+raw.pdf
+reference.html
+node_modules/
+
+# Compiled builds, should they ever be made again
+rogal-macos-*
+rogal-linux-*
+rogal-windows-*

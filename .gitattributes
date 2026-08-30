@@ -1,1 +1,4 @@
-plain.html linguist-generated=true
+# rogal.html is produced by build.js from rogal-core.js and rogal-ui.html.
+# Marking it generated keeps it collapsed in diffs, so a change to the
+# language shows up as a few lines rather than a rewritten page.
+rogal.html linguist-generated=true
