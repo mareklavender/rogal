@@ -104,11 +104,17 @@ function plainly(message, node, hint) {
   for (const line of result.output) console.log(line);
 
   if (result.error) {
-    const srcLine = (source.split("\n")[result.error.line - 1] || "").replace(/\t/g, "  ");
-    const carets = " ".repeat(Math.max(0, result.error.col - 1)) + "^".repeat(Math.max(1, result.error.len));
-    console.error(`\nLine ${result.error.line}`);
-    console.error(`  ${srcLine}`);
-    console.error(`  ${carets}`);
+    // Only show the line and caret when the error is in this file. A line
+    // number from inside a library would point at the wrong text.
+    if (!result.error.file) {
+      const srcLine = (source.split("\n")[result.error.line - 1] || "").replace(/\t/g, "  ");
+      const carets = " ".repeat(Math.max(0, result.error.col - 1)) + "^".repeat(Math.max(1, result.error.len));
+      console.error(`\nLine ${result.error.line}`);
+      console.error(`  ${srcLine}`);
+      console.error(`  ${carets}`);
+    } else {
+      console.error("");
+    }
     console.error(result.error.message);
     if (result.error.hint) console.error(result.error.hint);
     process.exit(1);

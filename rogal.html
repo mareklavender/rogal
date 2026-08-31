@@ -183,9 +183,9 @@
 <div class="wrap">
 
   <header class="masthead">
-    <p class="eyebrow">Version 0.9.1 · runs entirely in this page</p>
+    <p class="eyebrow">Version 0.9.2 · runs entirely in this page</p>
     <h1 class="wordmark">Rogal</h1>
-    <p class="standfirst">A small language that is genuinely easy to write. Thirty words, one way to write each thing, and a mistake tells you <em>what to do about it</em> instead of what went wrong inside the machine.</p>
+    <p class="standfirst">A small language that is genuinely easy to write. Thirty-two words, one way to write each thing, and a mistake tells you <em>what to do about it</em> instead of what went wrong inside the machine.</p>
   </header>
 
   <div class="exercises" id="exercises"></div>
@@ -225,7 +225,7 @@
 
   <section class="reference">
     <h2 class="ref-title">The whole language</h2>
-    <p class="ref-sub">Not a summary — 30 words and 32 actions is everything Rogal has. Nothing to install, nothing to import.</p>
+    <p class="ref-sub">Not a summary — 32 words and 32 actions is everything Rogal has. Nothing to install, nothing to import.</p>
     <div class="ref-grid">
       <div class="ref-block">
         <h3>Instructions</h3>
@@ -291,7 +291,7 @@
 </div>
 
 <script>
-const ROGAL_VERSION = "0.9.1";
+const ROGAL_VERSION = "0.9.2";
 
 /* ============================================================
    Rogal — core language
@@ -302,7 +302,7 @@ const MAX_DEPTH = 300;
 
 const KEYWORDS = new Set([
   "set","change","to","show","use","if","else","end","for","each","in","repeat","times",
-  "while","make","give","is","not","and","or","true","false","nothing",
+  "while","make","reach","fail","give","is","not","and","or","true","false","nothing",
   "more","less","than","at","most","least","stop"
 ]);
 
@@ -318,15 +318,16 @@ class RogalError extends Error {
     this.len = tok ? Math.max(1, String(tok.text).length) : 1;
     this.hint = (extra && extra.hint) || null;
     this.fix = (extra && extra.fix) || null;
+    this.file = tok && tok.file ? tok.file : null;
   }
 }
 
 /* ---------- tokeniser ---------- */
 
-function tokenise(src) {
+function tokenise(src, fromFile) {
   const toks = [];
   let i = 0, line = 1, col = 1;
-  const push = (type, text, l, c) => toks.push({ type, text, line: l, col: c });
+  const push = (type, text, l, c) => toks.push({ type, text, line: l, col: c, file: fromFile });
   const isDigit = ch => ch >= "0" && ch <= "9";
 
   while (i < src.length) {
@@ -357,7 +358,7 @@ function tokenise(src) {
             { hint: 'Every piece of text needs a quote mark at each end, like "hello".' });
         if (src[i] === "\\" && i + 1 < src.length) {
           const n = src[i + 1];
-          value += n === "n" ? "\n" : n === "t" ? "\t" : n;
+          value += n === "n" ? "\n" : n === "t" ? "\t" : n === "r" ? "\r" : n;
           raw += src[i] + n; i += 2; col += 2; continue;
         }
         value += src[i]; raw += src[i]; i++; col++;
@@ -367,7 +368,7 @@ function tokenise(src) {
           { line: startLine, col: startCol, text: '"' },
           { hint: 'Every piece of text needs a quote mark at each end, like "hello".' });
       i++; col++; raw += '"';
-      toks.push({ type: "text", text: raw, value, line: startLine, col: startCol });
+      toks.push({ type: "text", text: raw, value, line: startLine, col: startCol, file: fromFile });
       continue;
     }
 
@@ -481,7 +482,9 @@ class Parser {
         case "for": return this.parseFor();
         case "while": return this.parseWhile();
         case "repeat": return this.parseRepeat();
-        case "make": return this.parseMake();
+        case "make": return this.parseMake(false);
+        case "reach": return this.parseMake(true);
+        case "fail": return this.parseFail();
         case "give": return this.parseGive();
         case "stop": { this.next(); this.endOfStatement(); return { kind: "stop", tok: t }; }
         case "end":
@@ -632,11 +635,18 @@ class Parser {
     return { kind: "repeat", count, body, tok: kw };
   }
 
-  parseMake() {
+  parseFail() {
+    const kw = this.next();
+    const value = this.parseExpression();
+    this.endOfStatement();
+    return { kind: "fail", value, tok: kw };
+  }
+
+  parseMake(reachesOut) {
     const kw = this.next();
     if (this.blockDepth > 0)
       throw new RogalError(`Actions can only be made at the top level of a program.`, kw,
-        { hint: `Move this "make" above the block it's inside. Actions can call each other, so nothing is lost.` });
+        { hint: `Move this "${kw.text}" above the block it's inside. Actions can call each other, so nothing is lost.` });
     const nameTok = this.peek();
     if (nameTok.type !== "name")
       throw new RogalError(`After "make" I need a name for the action.`, nameTok,
@@ -660,7 +670,7 @@ class Parser {
     this.expect(")", 'a closing ")"');
     const body = this.parseBlock(["end"], kw);
     this.expectAlone("end", 'the word "end"');
-    return { kind: "make", name: nameTok.text, nameTok, params, paramToks, body, tok: kw };
+    return { kind: "make", name: nameTok.text, nameTok, params, paramToks, body, tok: kw, reachesOut: !!reachesOut };
   }
 
   parseGive() {
@@ -870,6 +880,15 @@ function fmtNumber(n) {
   return Object.is(r, -0) ? "0" : String(r);
 }
 
+function sameNumber(a, b) {
+  return Math.round(a * 1e10) === Math.round(b * 1e10);
+}
+
+function compareNumbers(a, b) {
+  const x = Math.round(a * 1e10), y = Math.round(b * 1e10);
+  return x < y ? -1 : x > y ? 1 : 0;
+}
+
 function isRecord(v) { return v !== null && typeof v === "object" && v.__record === true; }
 function makeRecord(map) { return { __record: true, fields: map }; }
 function isAction(v) { return v !== null && typeof v === "object" && v.__action === true; }
@@ -915,6 +934,7 @@ function sameValue(a, b) {
     const ka = Object.keys(a.fields), kb = Object.keys(b.fields);
     return ka.length === kb.length && ka.every(k => k in b.fields && sameValue(a.fields[k], b.fields[k]));
   }
+  if (typeof a === "number" && typeof b === "number") return sameNumber(a, b);
   return a === b;
 }
 
@@ -1076,6 +1096,7 @@ class Interpreter {
     this.program = null;
     this.depth = 0;
     this.cameFrom = new Map();   // name -> the action that produced its value
+    this.inside = [];            // one entry per action being run: does it reach out?
   }
 
   tick(tok) {
@@ -1174,8 +1195,17 @@ class Interpreter {
       }
       case "make": {
         this.declare(scope, node.name,
-          { __action: true, name: node.name, params: node.params, body: node.body }, node.nameTok, "make");
+          { __action: true, name: node.name, params: node.params, body: node.body, reachesOut: node.reachesOut },
+          node.nameTok, node.reachesOut ? "reach" : "make");
         return;
+      }
+
+      case "fail": {
+        const message = await this.eval(node.value, scope);
+        if (typeof message !== "string")
+          throw new RogalError(`"fail" needs text saying what went wrong, but got ${describeValue(message)}.`, node.tok,
+            { hint: `For example: fail "Expected three columns, found " + count(row)` });
+        throw new RogalError(message, node.tok);
       }
       case "give": throw new GiveSignal(node.value ? await this.eval(node.value, scope) : null);
       case "use": return;                       // already gathered before the run
@@ -1392,7 +1422,7 @@ class Interpreter {
 
       case "call": {
         const callee = await this.eval(node.callee, scope);
-        if (isAction(callee) && callee.effect && !node.wholeStatement) {
+        if (isAction(callee) && callee.effect && !node.wholeStatement && !this.inside.length) {
           throw new RogalError(`"${callee.name}" reaches outside the program, so it needs a line of its own.`, node.tok,
             { hint: `Write "set something to ${callee.name}(...)" on its own line first, then use that name here.` });
         }
@@ -1438,11 +1468,12 @@ class Interpreter {
         if (typeof l !== "number" || typeof r !== "number")
           throw new RogalError(`I can only compare sizes of numbers or text, but got ${describeValue(l)} and ${describeValue(r)}.`, node.tok,
             { hint: `To check they match exactly, use "is".` });
+        const c = compareNumbers(l, r);
         switch (node.op) {
-          case "more": return l > r;
-          case "less": return l < r;
-          case "at least": return l >= r;
-          case "at most": return l <= r;
+          case "more": return c > 0;
+          case "less": return c < 0;
+          case "at least": return c >= 0;
+          case "at most": return c <= 0;
         }
       }
 
@@ -1507,9 +1538,22 @@ class Interpreter {
 
   async callValue(callee, args, node) {
     if (isAction(callee)) {
-      if (callee.effect && this.depth > 0)
-        throw new RogalError(`"${callee.name}" can't be used inside an action.`, node.tok,
-          { hint: `Read or fetch at the top level of your program, then pass the value in. That keeps every action free of surprises.` });
+      const here = this.inside.length ? this.inside[this.inside.length - 1] : null;
+
+      if (callee.effect && here !== null && here === false)
+        throw new RogalError(`"${callee.name}" can't be used inside an ordinary action.`, node.tok,
+          { hint: `Start the action with "reach" instead of "make" to let it touch the outside, or read at the top level and pass the value in.` });
+
+      // An action that reaches out follows the same rules as the kernel: its own
+      // line, and never called from an action that promised not to.
+      if (callee.reachesOut) {
+        if (here === false)
+          throw new RogalError(`"${callee.name}" reaches outside the program, so an ordinary action can't call it.`, node.tok,
+            { hint: `Start this action with "reach" instead of "make" if it needs to, or call "${callee.name}" at the top level and pass the value in.` });
+        if (here === null && !node.wholeStatement)
+          throw new RogalError(`"${callee.name}" reaches outside the program, so it needs a line of its own.`, node.tok,
+            { hint: `Write "set something to ${callee.name}(...)" on its own line first, then use that name here.` });
+      }
       if (callee.native) return await callee.native(args, node, this);
       if (args.length !== callee.params.length)
         throw new RogalError(
@@ -1518,6 +1562,7 @@ class Interpreter {
       // sealed: an action sees its inputs and the built-ins, nothing else
       const inner = new Scope(this.builtins, "action");
       callee.params.forEach((p, i) => inner.define(p, copyValue(args[i])));
+      this.inside.push(!!callee.reachesOut);
       this.depth++;
       if (this.depth > MAX_DEPTH) {
         this.depth--;
@@ -1527,7 +1572,7 @@ class Interpreter {
       }
       try { await this.execBlock(callee.body, inner); }
       catch (e) { if (e instanceof GiveSignal) return e.value; throw e; }
-      finally { this.depth--; }
+      finally { this.depth--; this.inside.pop(); }
       return null;
     }
     throw new RogalError(`${describeValue(callee)} is not something I can run.`, node.tok,
@@ -1941,7 +1986,7 @@ async function gatherLibraries(program, host, seen, chain) {
 
     const text = await host.library(name, st);
     let inner;
-    try { inner = new Parser(tokenise(text)).parseProgram(); }
+    try { inner = new Parser(tokenise(text, name + ".rogal")).parseProgram(); }
     catch (e) {
       if (e && e.rogal) e.message = `In "${name}.rogal", line ${e.line}: ${e.message}`;
       throw e;
@@ -1986,7 +2031,12 @@ async function run(source, host) {
     if (e instanceof StopSignal)
       return { output, error: { line: 1, col: 1, len: 1, message: `"stop" only works inside a loop.`, hint: null, fix: null } };
     if (e && e.rogal)
-      return { output, error: { line: e.line, col: e.col, len: e.len, message: e.message, hint: e.hint, fix: e.fix } };
+      return { output, error: {
+        line: e.line, col: e.col, len: e.len, file: e.file || null,
+        // A line number from inside a library means nothing against the
+        // program's own source, so say which file it came from.
+        message: e.file ? `In ${e.file}, line ${e.line}: ${e.message}` : e.message,
+        hint: e.hint, fix: e.file ? null : e.fix } };
     if (e instanceof RangeError || /call stack|too much recursion|stack size/i.test(String(e && e.message)))
       return { output, error: { line: 1, col: 1, len: 1,
         message: "This program nested too deeply and had to be stopped.",
@@ -2002,6 +2052,7 @@ if (typeof module !== "undefined") module.exports = { run, ROGAL_VERSION, makeRe
 <script>
 // Libraries that travel with the page, so "use" works here as well.
 const SHIPPED_LIBRARIES = {
+  csv: "# csv.rogal \u2014 reading and writing comma-separated tables, written in Rogal.\n#\n# Handles quoted fields, so a comma or a quote mark inside a value is safe:\n#\n#   name,note\n#   apples,\"red, green\"\n#   pears,\"the \"\"good\"\" ones\"\n#\n# Rows come back as lists of text. csv_records turns them into records\n# using the first line as the field names.\n\nmake csv_split_line(line)\n  set fields to []\n  set current to \"\"\n  set inside_quotes to false\n  set i to 1\n\n  while i is at most count(line)\n    set letter to line[i]\n\n    if inside_quotes\n      if letter is \"\\\"\"\n        # two quote marks in a row mean one real quote mark\n        if i is less than count(line) and line[i + 1] is \"\\\"\"\n          change current to current + \"\\\"\"\n          change i to i + 1\n        else\n          change inside_quotes to false\n        end\n      else\n        change current to current + letter\n      end\n    else\n      if letter is \"\\\"\"\n        change inside_quotes to true\n      else\n        if letter is \",\"\n          change fields to add(fields, current)\n          change current to \"\"\n        else\n          change current to current + letter\n        end\n      end\n    end\n\n    change i to i + 1\n  end\n\n  if inside_quotes\n    fail \"A quoted value was never closed: \" + line\n  end\n\n  give add(fields, current)\nend\n\nmake csv_rows(text)\n  set rows to []\n  for each line in split(replace(trim(text), \"\\r\", \"\"), \"\\n\")\n    if trim(line) is not \"\"\n      change rows to add(rows, csv_split_line(line))\n    end\n  end\n  give rows\nend\n\n# The first line names the fields; every line after becomes a record.\nmake csv_records(text)\n  set rows to csv_rows(text)\n  if count(rows) is 0\n    give []\n  end\n\n  set names to first(rows)\n  set records to []\n  set line_number to 2\n\n  while line_number is at most count(rows)\n    set row to rows[line_number]\n    if count(row) is not count(names)\n      fail \"Line \" + line_number + \" has \" + count(row) + \" values but there are \" + count(names) + \" column names\"\n    end\n\n    set record to {}\n    set i to 1\n    while i is at most count(names)\n      change record[names[i]] to row[i]\n      change i to i + 1\n    end\n\n    change records to add(records, record)\n    change line_number to line_number + 1\n  end\n\n  give records\nend\n\n# Puts quote marks round a value only when it needs them.\nmake csv_quote(value)\n  set as_text to text(value)\n  set needs_quotes to has(as_text, \",\") or has(as_text, \"\\\"\") or has(as_text, \"\\n\")\n  if needs_quotes\n    give \"\\\"\" + replace(as_text, \"\\\"\", \"\\\"\\\"\") + \"\\\"\"\n  end\n  give as_text\nend\n\nmake csv_line(row)\n  set parts to []\n  for each value in row\n    change parts to add(parts, csv_quote(value))\n  end\n  give join(parts, \",\")\nend\n\nmake csv_text(rows)\n  set lines to []\n  for each row in rows\n    change lines to add(lines, csv_line(row))\n  end\n  give join(lines, \"\\n\")\nend\n\n# Records back to text, with a header line taken from the first record.\nmake csv_from_records(records)\n  if count(records) is 0\n    give \"\"\n  end\n  set names to keys(first(records))\n  set rows to [names]\n  for each record in records\n    set row to []\n    for each name in names\n      change row to add(row, record[name])\n    end\n    change rows to add(rows, row)\n  end\n  give csv_text(rows)\nend\n",
   dates: "# dates.rogal \u2014 working with dates, written in Rogal itself.\n#\n# Dates here are text in the form \"2026-08-22\". Written that way they\n# already sort and compare correctly, so this file only adds the parts\n# that need arithmetic: counting days, moving forwards, and naming the day.\n#\n# Nothing in this file reaches outside the program. Paste it above your\n# own code and call the actions. To find today, use now() in your program\n# and pass the date in.\n\nmake is_leap_year(year)\n  if year % 400 is 0\n    give true\n  end\n  if year % 100 is 0\n    give false\n  end\n  give year % 4 is 0\nend\n\nmake days_in_month(year, month)\n  set lengths to [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]\n  if month is 2\n    if is_leap_year(year)\n      give 29\n    end\n    give 28\n  end\n  give lengths[month]\nend\n\nmake date_parts(date)\n  set bits to split(date, \"-\")\n  if count(bits) is not 3\n    give nothing\n  end\n  give {year: number(bits[1]), month: number(bits[2]), day: number(bits[3])}\nend\n\nmake is_date(date)\n  set parts to date_parts(date)\n  if parts is nothing\n    give false\n  end\n  if parts.month is less than 1 or parts.month is more than 12\n    give false\n  end\n  if parts.day is less than 1\n    give false\n  end\n  give parts.day is at most days_in_month(parts.year, parts.month)\nend\n\n# Days since the start of year 1, so two dates can be subtracted.\nmake day_number(date)\n  set parts to date_parts(date)\n  set years to parts.year - 1\n  set total to years * 365 + numbers_below(years, 4) - numbers_below(years, 100) + numbers_below(years, 400)\n\n  set month to 1\n  while month is less than parts.month\n    change total to total + days_in_month(parts.year, month)\n    change month to month + 1\n  end\n\n  give total + parts.day\nend\n\nmake numbers_below(n, step)\n  give round((n - (n % step)) / step)\nend\n\nmake days_between(first, second)\n  give day_number(second) - day_number(first)\nend\n\nmake add_days(date, howMany)\n  set parts to date_parts(date)\n  set year to parts.year\n  set month to parts.month\n  set day to parts.day + howMany\n\n  while day is more than days_in_month(year, month)\n    change day to day - days_in_month(year, month)\n    change month to month + 1\n    if month is more than 12\n      change month to 1\n      change year to year + 1\n    end\n  end\n\n  while day is less than 1\n    change month to month - 1\n    if month is less than 1\n      change month to 12\n      change year to year - 1\n    end\n    change day to day + days_in_month(year, month)\n  end\n\n  give text(year) + \"-\" + two_digits(month) + \"-\" + two_digits(day)\nend\n\nmake two_digits(n)\n  if n is less than 10\n    give \"0\" + n\n  end\n  give text(n)\nend\n\nmake weekday(date)\n  set names to [\"Monday\", \"Tuesday\", \"Wednesday\", \"Thursday\", \"Friday\", \"Saturday\", \"Sunday\"]\n  give names[(day_number(date) - 1) % 7 + 1]\nend\n\nmake month_name(date)\n  set names to [\"January\", \"February\", \"March\", \"April\", \"May\", \"June\",\n                \"July\", \"August\", \"September\", \"October\", \"November\", \"December\"]\n  give names[date_parts(date).month]\nend\n\n# \"2026-08-22\" becomes \"22 August 2026\"\nmake long_date(date)\n  set parts to date_parts(date)\n  give parts.day + \" \" + month_name(date) + \" \" + parts.year\nend\n",
 };
 
@@ -2283,6 +2334,35 @@ show ""
 # behind your back when you bring one in.
 show "February 2028 has " + days_in_month(2028, 2) + " days"`},
 
+  { name:"a table from text", code:
+`use "csv"
+
+# csv is written in Rogal, like dates. Open csv.rogal and read it.
+
+set sample to join([
+  "item,price,sold",
+  "apples,1.50,120",
+  "watermelon,12.00,8",
+  "figs,0.75,340"
+], "\\n")
+
+set rows to csv_records(sample)
+
+show align_left("Item", 12) + align_right("Sold", 6)
+for each row in rows
+  show align_left(row.item, 12) + align_right(row.sold, 6)
+end
+
+show ""
+show "The third one costs: " + rows[3].price
+
+# A value holding a comma is quoted in the file, and
+# csv_rows puts it back together. See csv.rogal.
+
+# fail says when the input is the wrong shape
+set ragged to join(["a,b", "1,2,3"], "\\n")
+set oops to csv_records(ragged)`},
+
   { name:"a mistake", broken:true, code:
 `set total to 0
 set prices to [10, 20, 30]
@@ -2477,9 +2557,13 @@ function buildCorrection(err, src) {
   const srcLine = (src.split("\n")[err.line - 1] || "").replace(/\t/g, "  ");
   const carets = " ".repeat(Math.max(0, err.col - 1)) + "^".repeat(Math.max(1, Math.min(err.len, 80)));
 
+  // An error from inside a library has that library's line numbers, so the
+  // line from this editor would be the wrong text entirely.
   box.innerHTML =
-    `<div class="correction-head">Line ${err.line}</div>` +
-    `<pre class="correction-code">${escapeHtml(srcLine)}<i>${escapeHtml(carets)}</i></pre>` +
+    (err.file
+      ? `<div class="correction-head">In ${escapeHtml(err.file)}</div>`
+      : `<div class="correction-head">Line ${err.line}</div>` +
+        `<pre class="correction-code">${escapeHtml(srcLine)}<i>${escapeHtml(carets)}</i></pre>`) +
     `<p class="correction-msg">${escapeHtml(err.message)}</p>` +
     (err.hint ? `<p class="correction-hint">${escapeHtml(err.hint)}</p>` : "");
 

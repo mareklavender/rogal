@@ -11,7 +11,8 @@ Everything you need is in this repository. There are no dependencies to install 
 | [`rogal-reference.md`](rogal-reference.md) | The reference. |
 | [`rogal.js`](rogal.js) | The command-line runner. |
 | [`dates.rogal`](dates.rogal) | A date library, written in Rogal itself. |
-| [`test.js`](test.js) | 153 checks. |
+| [`csv.rogal`](csv.rogal) | A CSV library, likewise. |
+| [`test.js`](test.js) | 176 checks. |
 | [`build.js`](build.js) | Squashes the interpreter and the page into `rogal.html`. |
 | [`make-pdf.py`](make-pdf.py) | Turns the reference into a PDF. |
 | `rogal.html` | **Generated.** Never edit it. |
@@ -39,10 +40,28 @@ python3 make-pdf.py
 It lives in one place, the top of `rogal-core.js`:
 
 ```js
-const ROGAL_VERSION = "0.9.1";
+const ROGAL_VERSION = "0.9.2";
 ```
 
 The build stamps it into the page and the PDF, so they can't drift apart. Bump it whenever the language changes, and add a line to `CHANGELOG.md` saying what happened.
+
+## What belongs in the core
+
+The core is for what you can't write cleanly in Rogal itself.
+
+`read` can't be written in Rogal — nothing else reaches a file. `fail` can't — no action can stop a program. `parse_csv` can, and does, in `csv.rogal`. So can `starts(line, prefix)`, in four lines on top of `slice`.
+
+The test for any new built-in: **try writing it in Rogal first.** If it comes out clean, it belongs in a library. If it's impossible or grotesque, it belongs in the core. That's what keeps 32 actions from becoming 200.
+
+## Security, every release
+
+A short list, because the surface is small:
+
+- **Can a program reach where it shouldn't?** `use` takes a name, never a path. `read` and `write` are deliberately unrestricted, which is documented. Any new kernel action needs the same question asked.
+- **Does anything from a program reach the page as HTML?** Output uses `textContent`; errors use `escapeHtml`. If either becomes `innerHTML`, a program could inject script into the page.
+- **Do the limits still hold?** 2000 lines, four million steps, five seconds, 300 levels of recursion, 200 of copying. Each was added for a reason and each could be lost in a rewrite.
+- **Is anything new reachable from inside an ordinary action?** The kernel is sealed off on purpose, and `reach` is the only door. A new action that quietly isn't sealed would undo it.
+- **What can a shared file do?** Someone downloads a `.rogal` file and runs it. Today that's `read` plus `get`, which is the same exposure as any scripting language — but it should stay a considered position rather than an accident.
 
 ## What to check before a release
 

@@ -1,0 +1,138 @@
+# csv.rogal — reading and writing comma-separated tables, written in Rogal.
+#
+# Handles quoted fields, so a comma or a quote mark inside a value is safe:
+#
+#   name,note
+#   apples,"red, green"
+#   pears,"the ""good"" ones"
+#
+# Rows come back as lists of text. csv_records turns them into records
+# using the first line as the field names.
+
+make csv_split_line(line)
+  set fields to []
+  set current to ""
+  set inside_quotes to false
+  set i to 1
+
+  while i is at most count(line)
+    set letter to line[i]
+
+    if inside_quotes
+      if letter is "\""
+        # two quote marks in a row mean one real quote mark
+        if i is less than count(line) and line[i + 1] is "\""
+          change current to current + "\""
+          change i to i + 1
+        else
+          change inside_quotes to false
+        end
+      else
+        change current to current + letter
+      end
+    else
+      if letter is "\""
+        change inside_quotes to true
+      else
+        if letter is ","
+          change fields to add(fields, current)
+          change current to ""
+        else
+          change current to current + letter
+        end
+      end
+    end
+
+    change i to i + 1
+  end
+
+  if inside_quotes
+    fail "A quoted value was never closed: " + line
+  end
+
+  give add(fields, current)
+end
+
+make csv_rows(text)
+  set rows to []
+  for each line in split(replace(trim(text), "\r", ""), "\n")
+    if trim(line) is not ""
+      change rows to add(rows, csv_split_line(line))
+    end
+  end
+  give rows
+end
+
+# The first line names the fields; every line after becomes a record.
+make csv_records(text)
+  set rows to csv_rows(text)
+  if count(rows) is 0
+    give []
+  end
+
+  set names to first(rows)
+  set records to []
+  set line_number to 2
+
+  while line_number is at most count(rows)
+    set row to rows[line_number]
+    if count(row) is not count(names)
+      fail "Line " + line_number + " has " + count(row) + " values but there are " + count(names) + " column names"
+    end
+
+    set record to {}
+    set i to 1
+    while i is at most count(names)
+      change record[names[i]] to row[i]
+      change i to i + 1
+    end
+
+    change records to add(records, record)
+    change line_number to line_number + 1
+  end
+
+  give records
+end
+
+# Puts quote marks round a value only when it needs them.
+make csv_quote(value)
+  set as_text to text(value)
+  set needs_quotes to has(as_text, ",") or has(as_text, "\"") or has(as_text, "\n")
+  if needs_quotes
+    give "\"" + replace(as_text, "\"", "\"\"") + "\""
+  end
+  give as_text
+end
+
+make csv_line(row)
+  set parts to []
+  for each value in row
+    change parts to add(parts, csv_quote(value))
+  end
+  give join(parts, ",")
+end
+
+make csv_text(rows)
+  set lines to []
+  for each row in rows
+    change lines to add(lines, csv_line(row))
+  end
+  give join(lines, "\n")
+end
+
+# Records back to text, with a header line taken from the first record.
+make csv_from_records(records)
+  if count(records) is 0
+    give ""
+  end
+  set names to keys(first(records))
+  set rows to [names]
+  for each record in records
+    set row to []
+    for each name in names
+      change row to add(row, record[name])
+    end
+    change rows to add(rows, row)
+  end
+  give csv_text(rows)
+end

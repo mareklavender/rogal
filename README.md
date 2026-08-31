@@ -2,7 +2,7 @@
 
 A small programming language that's genuinely easy to write, where a mistake tells you what to do about it instead of what went wrong inside the machine.
 
-30 words and 32 actions. One way to write each thing. Blocks close with `end`, so indentation can never break a program. Comparisons are words, so `=` and `==` can't be muddled. And when something goes wrong you get the line, the word underlined, a sentence explaining it, and often a button that fixes it.
+32 words and 32 actions. One way to write each thing. Blocks close with `end`, so indentation can never break a program. Comparisons are words, so `=` and `==` can't be muddled. And when something goes wrong you get the line, the word underlined, a sentence explaining it, and often a button that fixes it.
 
 ```rogal
 set prices to [12.4, 8.9, 31.2]
@@ -21,7 +21,7 @@ Average: 17.5
 
 Small enough to hold in your head, and solid enough to write real scripts in. That makes it a good first language, and a reasonable one to stay with.
 
-**Status:** working prototype, v0.9.1.
+**Status:** working prototype, v0.9.2.
 
 ---
 

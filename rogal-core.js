@@ -1,4 +1,4 @@
-const ROGAL_VERSION = "0.9.1";
+const ROGAL_VERSION = "0.9.2";
 
 /* ============================================================
    Rogal — core language
@@ -9,7 +9,7 @@ const MAX_DEPTH = 300;
 
 const KEYWORDS = new Set([
   "set","change","to","show","use","if","else","end","for","each","in","repeat","times",
-  "while","make","give","is","not","and","or","true","false","nothing",
+  "while","make","reach","fail","give","is","not","and","or","true","false","nothing",
   "more","less","than","at","most","least","stop"
 ]);
 
@@ -25,15 +25,16 @@ class RogalError extends Error {
     this.len = tok ? Math.max(1, String(tok.text).length) : 1;
     this.hint = (extra && extra.hint) || null;
     this.fix = (extra && extra.fix) || null;
+    this.file = tok && tok.file ? tok.file : null;
   }
 }
 
 /* ---------- tokeniser ---------- */
 
-function tokenise(src) {
+function tokenise(src, fromFile) {
   const toks = [];
   let i = 0, line = 1, col = 1;
-  const push = (type, text, l, c) => toks.push({ type, text, line: l, col: c });
+  const push = (type, text, l, c) => toks.push({ type, text, line: l, col: c, file: fromFile });
   const isDigit = ch => ch >= "0" && ch <= "9";
 
   while (i < src.length) {
@@ -64,7 +65,7 @@ function tokenise(src) {
             { hint: 'Every piece of text needs a quote mark at each end, like "hello".' });
         if (src[i] === "\\" && i + 1 < src.length) {
           const n = src[i + 1];
-          value += n === "n" ? "\n" : n === "t" ? "\t" : n;
+          value += n === "n" ? "\n" : n === "t" ? "\t" : n === "r" ? "\r" : n;
           raw += src[i] + n; i += 2; col += 2; continue;
         }
         value += src[i]; raw += src[i]; i++; col++;
@@ -74,7 +75,7 @@ function tokenise(src) {
           { line: startLine, col: startCol, text: '"' },
           { hint: 'Every piece of text needs a quote mark at each end, like "hello".' });
       i++; col++; raw += '"';
-      toks.push({ type: "text", text: raw, value, line: startLine, col: startCol });
+      toks.push({ type: "text", text: raw, value, line: startLine, col: startCol, file: fromFile });
       continue;
     }
 
@@ -188,7 +189,9 @@ class Parser {
         case "for": return this.parseFor();
         case "while": return this.parseWhile();
         case "repeat": return this.parseRepeat();
-        case "make": return this.parseMake();
+        case "make": return this.parseMake(false);
+        case "reach": return this.parseMake(true);
+        case "fail": return this.parseFail();
         case "give": return this.parseGive();
         case "stop": { this.next(); this.endOfStatement(); return { kind: "stop", tok: t }; }
         case "end":
@@ -339,11 +342,18 @@ class Parser {
     return { kind: "repeat", count, body, tok: kw };
   }
 
-  parseMake() {
+  parseFail() {
+    const kw = this.next();
+    const value = this.parseExpression();
+    this.endOfStatement();
+    return { kind: "fail", value, tok: kw };
+  }
+
+  parseMake(reachesOut) {
     const kw = this.next();
     if (this.blockDepth > 0)
       throw new RogalError(`Actions can only be made at the top level of a program.`, kw,
-        { hint: `Move this "make" above the block it's inside. Actions can call each other, so nothing is lost.` });
+        { hint: `Move this "${kw.text}" above the block it's inside. Actions can call each other, so nothing is lost.` });
     const nameTok = this.peek();
     if (nameTok.type !== "name")
       throw new RogalError(`After "make" I need a name for the action.`, nameTok,
@@ -367,7 +377,7 @@ class Parser {
     this.expect(")", 'a closing ")"');
     const body = this.parseBlock(["end"], kw);
     this.expectAlone("end", 'the word "end"');
-    return { kind: "make", name: nameTok.text, nameTok, params, paramToks, body, tok: kw };
+    return { kind: "make", name: nameTok.text, nameTok, params, paramToks, body, tok: kw, reachesOut: !!reachesOut };
   }
 
   parseGive() {
@@ -577,6 +587,15 @@ function fmtNumber(n) {
   return Object.is(r, -0) ? "0" : String(r);
 }
 
+function sameNumber(a, b) {
+  return Math.round(a * 1e10) === Math.round(b * 1e10);
+}
+
+function compareNumbers(a, b) {
+  const x = Math.round(a * 1e10), y = Math.round(b * 1e10);
+  return x < y ? -1 : x > y ? 1 : 0;
+}
+
 function isRecord(v) { return v !== null && typeof v === "object" && v.__record === true; }
 function makeRecord(map) { return { __record: true, fields: map }; }
 function isAction(v) { return v !== null && typeof v === "object" && v.__action === true; }
@@ -622,6 +641,7 @@ function sameValue(a, b) {
     const ka = Object.keys(a.fields), kb = Object.keys(b.fields);
     return ka.length === kb.length && ka.every(k => k in b.fields && sameValue(a.fields[k], b.fields[k]));
   }
+  if (typeof a === "number" && typeof b === "number") return sameNumber(a, b);
   return a === b;
 }
 
@@ -783,6 +803,7 @@ class Interpreter {
     this.program = null;
     this.depth = 0;
     this.cameFrom = new Map();   // name -> the action that produced its value
+    this.inside = [];            // one entry per action being run: does it reach out?
   }
 
   tick(tok) {
@@ -881,8 +902,17 @@ class Interpreter {
       }
       case "make": {
         this.declare(scope, node.name,
-          { __action: true, name: node.name, params: node.params, body: node.body }, node.nameTok, "make");
+          { __action: true, name: node.name, params: node.params, body: node.body, reachesOut: node.reachesOut },
+          node.nameTok, node.reachesOut ? "reach" : "make");
         return;
+      }
+
+      case "fail": {
+        const message = await this.eval(node.value, scope);
+        if (typeof message !== "string")
+          throw new RogalError(`"fail" needs text saying what went wrong, but got ${describeValue(message)}.`, node.tok,
+            { hint: `For example: fail "Expected three columns, found " + count(row)` });
+        throw new RogalError(message, node.tok);
       }
       case "give": throw new GiveSignal(node.value ? await this.eval(node.value, scope) : null);
       case "use": return;                       // already gathered before the run
@@ -1099,7 +1129,7 @@ class Interpreter {
 
       case "call": {
         const callee = await this.eval(node.callee, scope);
-        if (isAction(callee) && callee.effect && !node.wholeStatement) {
+        if (isAction(callee) && callee.effect && !node.wholeStatement && !this.inside.length) {
           throw new RogalError(`"${callee.name}" reaches outside the program, so it needs a line of its own.`, node.tok,
             { hint: `Write "set something to ${callee.name}(...)" on its own line first, then use that name here.` });
         }
@@ -1145,11 +1175,12 @@ class Interpreter {
         if (typeof l !== "number" || typeof r !== "number")
           throw new RogalError(`I can only compare sizes of numbers or text, but got ${describeValue(l)} and ${describeValue(r)}.`, node.tok,
             { hint: `To check they match exactly, use "is".` });
+        const c = compareNumbers(l, r);
         switch (node.op) {
-          case "more": return l > r;
-          case "less": return l < r;
-          case "at least": return l >= r;
-          case "at most": return l <= r;
+          case "more": return c > 0;
+          case "less": return c < 0;
+          case "at least": return c >= 0;
+          case "at most": return c <= 0;
         }
       }
 
@@ -1214,9 +1245,22 @@ class Interpreter {
 
   async callValue(callee, args, node) {
     if (isAction(callee)) {
-      if (callee.effect && this.depth > 0)
-        throw new RogalError(`"${callee.name}" can't be used inside an action.`, node.tok,
-          { hint: `Read or fetch at the top level of your program, then pass the value in. That keeps every action free of surprises.` });
+      const here = this.inside.length ? this.inside[this.inside.length - 1] : null;
+
+      if (callee.effect && here !== null && here === false)
+        throw new RogalError(`"${callee.name}" can't be used inside an ordinary action.`, node.tok,
+          { hint: `Start the action with "reach" instead of "make" to let it touch the outside, or read at the top level and pass the value in.` });
+
+      // An action that reaches out follows the same rules as the kernel: its own
+      // line, and never called from an action that promised not to.
+      if (callee.reachesOut) {
+        if (here === false)
+          throw new RogalError(`"${callee.name}" reaches outside the program, so an ordinary action can't call it.`, node.tok,
+            { hint: `Start this action with "reach" instead of "make" if it needs to, or call "${callee.name}" at the top level and pass the value in.` });
+        if (here === null && !node.wholeStatement)
+          throw new RogalError(`"${callee.name}" reaches outside the program, so it needs a line of its own.`, node.tok,
+            { hint: `Write "set something to ${callee.name}(...)" on its own line first, then use that name here.` });
+      }
       if (callee.native) return await callee.native(args, node, this);
       if (args.length !== callee.params.length)
         throw new RogalError(
@@ -1225,6 +1269,7 @@ class Interpreter {
       // sealed: an action sees its inputs and the built-ins, nothing else
       const inner = new Scope(this.builtins, "action");
       callee.params.forEach((p, i) => inner.define(p, copyValue(args[i])));
+      this.inside.push(!!callee.reachesOut);
       this.depth++;
       if (this.depth > MAX_DEPTH) {
         this.depth--;
@@ -1234,7 +1279,7 @@ class Interpreter {
       }
       try { await this.execBlock(callee.body, inner); }
       catch (e) { if (e instanceof GiveSignal) return e.value; throw e; }
-      finally { this.depth--; }
+      finally { this.depth--; this.inside.pop(); }
       return null;
     }
     throw new RogalError(`${describeValue(callee)} is not something I can run.`, node.tok,
@@ -1648,7 +1693,7 @@ async function gatherLibraries(program, host, seen, chain) {
 
     const text = await host.library(name, st);
     let inner;
-    try { inner = new Parser(tokenise(text)).parseProgram(); }
+    try { inner = new Parser(tokenise(text, name + ".rogal")).parseProgram(); }
     catch (e) {
       if (e && e.rogal) e.message = `In "${name}.rogal", line ${e.line}: ${e.message}`;
       throw e;
@@ -1693,7 +1738,12 @@ async function run(source, host) {
     if (e instanceof StopSignal)
       return { output, error: { line: 1, col: 1, len: 1, message: `"stop" only works inside a loop.`, hint: null, fix: null } };
     if (e && e.rogal)
-      return { output, error: { line: e.line, col: e.col, len: e.len, message: e.message, hint: e.hint, fix: e.fix } };
+      return { output, error: {
+        line: e.line, col: e.col, len: e.len, file: e.file || null,
+        // A line number from inside a library means nothing against the
+        // program's own source, so say which file it came from.
+        message: e.file ? `In ${e.file}, line ${e.line}: ${e.message}` : e.message,
+        hint: e.hint, fix: e.file ? null : e.fix } };
     if (e instanceof RangeError || /call stack|too much recursion|stack size/i.test(String(e && e.message)))
       return { output, error: { line: 1, col: 1, len: 1,
         message: "This program nested too deeply and had to be stopped.",

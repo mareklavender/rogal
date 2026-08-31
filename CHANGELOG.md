@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.2
+
+- Numbers are compared the way they're shown. `0.1 + 0.2` displayed as `0.3` but wasn't equal to it, which was worse than showing the long version — the display hid the discrepancy.
+- `reach` creates an action that may use `read`, `write`, `get`, `ask` and `now`. It follows the same rules they do: a line of its own, and never called from an ordinary action. Without this, no library could open a file, and a standard library could only shuffle values already in memory.
+- `fail "message"` stops a program with a message you write, so a library can say the input is the wrong shape instead of letting it become a confusing error later.
+- A `csv` library, written in Rogal: rows, records, quoted fields, and back to text.
+- `\r` works as an escape. Without it `"\r"` was the letter r, so stripping Windows line endings quietly stripped every r in the file.
+- An error inside a library says which file it came from, and no longer points a caret at the wrong line of your program.
+
 ## 0.9.0
 
 - The playground can save and open files. There's a filename field, a **Save** button that downloads what you've written, and an **Open** button that loads a `.rogal` file back in. Ctrl+S and Ctrl+O work too.

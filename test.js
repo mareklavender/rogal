@@ -413,6 +413,107 @@ shows("an empty slice is still fine", `set xs to []\nshow slice(xs, 1, count(xs)
 fails("a nothing from find explains itself",
   `set line to "abc"\nset semi to find(line, ";")\nshow semi + 1`, `"find" didn't find`);
 
+/* ---------- numbers say what they show ---------- */
+
+shows("a sum that looks right compares right", `show 0.1 + 0.2\nshow 0.1 + 0.2 is 0.3`, ["0.3", "true"]);
+shows("and so does a product", `show 1.15 * 3 is 3.45`, ["true"]);
+shows("money adds up", `show 12.10 + 0.01 is 12.11`, ["true"]);
+shows("ordering agrees too", `show 0.1 + 0.2 is more than 0.3`, ["false"]);
+shows("real differences still show", `show 1 is 2\nshow 3 is more than 2`, ["false", "true"]);
+
+/* ---------- reach, and what it allows ---------- */
+
+const reachHost = Object.assign({}, testHost, {
+  async read(name) { return "a,b\n1,2\n"; },
+});
+
+function reaching(label, source, expected) { queue.push(async () => {
+  const r = await run(source, reachHost);
+  if (r.error) { failures.push(`${label}\n    got error: ${r.error.message}`); return; }
+  const got = r.output.join("\n");
+  if (got !== expected.join("\n")) {
+    failures.push(`${label}\n    expected: ${JSON.stringify(expected.join("\n"))}\n    got:      ${JSON.stringify(got)}`);
+    return;
+  }
+  passed++;
+}); }
+
+function reachFails(label, source, fragment) { queue.push(async () => {
+  const r = await run(source, reachHost);
+  if (!r.error) { failures.push(`${label}\n    expected an error, but it ran`); return; }
+  const whole = r.error.message + " " + (r.error.hint || "");
+  if (!whole.includes(fragment)) {
+    failures.push(`${label}\n    expected a message mentioning ${JSON.stringify(fragment)}\n    got: ${r.error.message}`);
+    return;
+  }
+  passed++;
+}); }
+
+reaching("a reaching action may read",
+  `reach load(n)\n  give read(n)\nend\nset raw to load("x")\nshow count(split(trim(raw), "\\n"))`, ["2"]);
+reaching("a reaching action may call another",
+  `reach load(n)\n  give read(n)\nend\nreach lines_of(n)\n  give split(trim(load(n)), "\\n")\nend\nset ls to lines_of("x")\nshow count(ls)`, ["2"]);
+reachFails("an ordinary action may not read",
+  `make load(n)\n  give read(n)\nend\nset x to load("y")`, "ordinary action");
+reachFails("an ordinary action may not call a reaching one",
+  `reach load(n)\n  give read(n)\nend\nmake wrap(n)\n  give load(n)\nend\nset x to wrap("y")`, "an ordinary action can't call it");
+reachFails("a reaching action needs its own line",
+  `reach load(n)\n  give read(n)\nend\nshow count(load("y"))`, "line of its own");
+reachFails("reach is top level only",
+  `if true\n  reach f()\n    give 1\n  end\nend`, "top level");
+
+/* ---------- failing on purpose ---------- */
+
+fails("fail stops with its own message", `fail "the file is the wrong shape"`, "the file is the wrong shape");
+fails("fail needs text", `fail 42`, "needs text");
+shows("what ran before the failure still shows", `show "one"\nshow "two"`, ["one", "two"]);
+queue.push(async () => {
+  const r = await run(`show "before"\nfail "stopped"\nshow "after"`);
+  if (r.output.length === 1 && r.output[0] === "before" && r.error && r.error.message === "stopped") passed++;
+  else failures.push("fail should stop the program where it stands");
+});
+
+/* ---------- the csv library ---------- */
+
+const csvHost = Object.assign({}, testHost, {
+  async library(name) {
+    if (name === "csv") return fs.readFileSync(__dirname + "/csv.rogal", "utf8");
+    if (name === "dates") return fs.readFileSync(__dirname + "/dates.rogal", "utf8");
+    const e = new Error(`no library "${name}"`); e.plain = true; e.line = 1; e.col = 1; e.len = 1; throw e;
+  },
+});
+
+function withCsv(label, source, expected) { queue.push(async () => {
+  const r = await run(`use "csv"\n` + source, csvHost);
+  if (r.error) { failures.push(`${label}\n    got error: ${r.error.message}`); return; }
+  const got = r.output.join("\n");
+  if (got !== expected.join("\n")) {
+    failures.push(`${label}\n    expected: ${JSON.stringify(expected.join("\n"))}\n    got:      ${JSON.stringify(got)}`);
+    return;
+  }
+  passed++;
+}); }
+
+withCsv("plain rows", `show csv_rows(join(["a,b", "1,2"], "\\n"))`, ['[["a", "b"], ["1", "2"]]']);
+withCsv("a comma inside quotes stays put",
+  `set rows to csv_rows("x,\\"one, two\\",y")\nshow rows[1][2]`, ["one, two"]);
+withCsv("two quote marks mean one",
+  `set rows to csv_rows("a,\\"the \\"\\"good\\"\\" ones\\"")\nshow rows[1][2]`, ['the "good" ones']);
+withCsv("records from a header line",
+  `set rs to csv_records(join(["name,count", "apples,10"], "\\n"))\nshow rs[1].name, rs[1].count`, ["apples 10"]);
+withCsv("round trip",
+  `set rs to csv_records(join(["name,count", "apples,10", "pears,4"], "\\n"))\nshow csv_from_records(rs)`,
+  ["name,count\napples,10\npears,4"]);
+withCsv("a value needing quotes gets them",
+  `show csv_text([["a", "one, two"]])`, ['a,"one, two"']);
+withCsv("empty text gives no rows", `show count(csv_rows(""))`, ["0"]);
+
+queue.push(async () => {
+  const r = await run(`use "csv"\nset rs to csv_records(join(["a,b", "1,2,3"], "\\n"))`, csvHost);
+  if (r.error && r.error.message.includes("csv.rogal") && r.error.message.includes("3 values")) passed++;
+  else failures.push("a ragged csv should fail, naming the library and the trouble");
+});
+
 /* ---------- report ---------- */
 
 (async () => {

@@ -1,8 +1,8 @@
 # Rogal — Language Reference
 
-**Version 0.9.1** · Complete. Every word the language has is in this document.
+**Version 0.9.2** · Complete. Every word the language has is in this document.
 
-Rogal has 30 words and 32 actions — 27 built in, and 5 that reach outside the program. That's the whole language: nothing to install and nothing to import.
+Rogal has 32 words and 32 actions — 27 built in, and 5 that reach outside the program. That's the whole language: nothing to install and nothing to import.
 
 ---
 
@@ -193,7 +193,7 @@ set count to 3
 
 Names start with a letter or `_` and may contain letters, digits and `_`. They are case-sensitive.
 
-All 30 words and all 32 action names are taken, so neither `set count to 0` nor `set at to 1` will work — `at` belongs to `is at least` — `count` is already something. The error says which name clashed. Section 23 lists every one of them; `total`, `tally` and `how_many` are all free.
+All 32 words and all 32 action names are taken, so neither `set count to 0` nor `set at to 1` will work — `at` belongs to `is at least` — `count` is already something. The error says which name clashed. Section 23 lists every one of them; `total`, `tally` and `how_many` are all free.
 
 `change` also reaches inside lists and records:
 
@@ -340,7 +340,9 @@ That third line matters: joining a number onto text needs no conversion. `"Total
 
 Dividing by zero is an error, not `infinity`.
 
-Numbers are shown tidied, so `0.1 + 0.2` displays as `0.3` rather than a long trail of digits.
+Numbers are shown tidied, so `0.1 + 0.2` displays as `0.3` rather than a long trail of digits — and they are **compared** the same way, so `0.1 + 0.2 is 0.3` is true. What you see is what you get, which isn't true in most languages.
+
+Two numbers less than a ten-billionth apart count as the same. That's the right trade for money and measurements; it would be the wrong one for scientific work needing more precision than that.
 
 ---
 
@@ -533,6 +535,43 @@ end
 
 show factorial(6)      # 720
 ```
+
+### When an action needs to reach outside
+
+An ordinary action can't use `read`, `write`, `get`, `ask` or `now` — that's what keeps it free of surprises. But a library needs to. Start it with `reach` instead of `make`:
+
+```rogal
+reach load_table(name)
+  set raw to read(name)
+  give csv_records(raw)
+end
+
+set rows to load_table("stock.csv")
+show count(rows)
+```
+
+`reach` says this action touches the world, and it then follows the same two rules the kernel does. It needs a line of its own, and an ordinary action still can't call it:
+
+```rogal
+make summarise(name)
+  give count(load_table(name))     # no
+end
+```
+> `load_table` reaches outside the program, so an ordinary action can't call it.
+
+So the promise holds either way: anything marked `make` uses only what you pass in, and anything that touches the outside says so on the line where it happens.
+
+### Failing on purpose
+
+`fail` stops the program with a message you write:
+
+```rogal
+if count(row) is not 3
+  fail "Expected three values, found " + count(row)
+end
+```
+
+That's how a library says the input is the wrong shape, rather than letting it turn into a confusing error further along. It works anywhere, including inside an action.
 
 **Actions are made at the top level only**, never inside an `if`, a loop, or another action. Actions can call each other freely, so nothing is lost by keeping them together — and you can see every action in a program without hunting through blocks.
 
@@ -923,6 +962,8 @@ show weekday("2026-12-25")       # Friday
 
 **`use` lines go at the top**, above your own code and never inside a block. All of them are followed before a single line runs, so a missing file or a clashing name is reported straight away rather than halfway through.
 
+An error inside a library says which file it came from, since a line number from `csv.rogal` would mean nothing against your own program.
+
 Three things are checked for you:
 
 - **A file that isn't there** — named, with where it was looked for.
@@ -932,6 +973,8 @@ Three things are checked for you:
 Using the same library twice does no harm; the second `use` is ignored.
 
 ### Where it looks
+
+Two libraries travel with Rogal: **`dates`** for counting days, adding them and naming weekdays, and **`csv`** for reading and writing comma-separated tables, quoted fields included. Both are written in Rogal, so you can open them and read them.
 
 On your computer, `use "dates"` looks for `dates.rogal` next to your program, then next to Rogal itself. In a browser there are no files, so only the libraries that travel with the page are available — `dates` is one of them, and anything else says so plainly.
 
@@ -1023,9 +1066,9 @@ Where the fix is unambiguous, the playground offers it as a button.
 
 ## 20. The complete word list
 
-All 30. There are no others.
+All 32. There are no others.
 
-**Instructions** — `set`, `change`, `to`, `show`, `use`, `if`, `else`, `end`, `for`, `each`, `in`, `repeat`, `times`, `while`, `make`, `give`, `stop`
+**Instructions** — `set`, `change`, `to`, `show`, `use`, `if`, `else`, `end`, `for`, `each`, `in`, `repeat`, `times`, `while`, `make`, `reach`, `fail`, `give`, `stop`
 
 **Comparing values** — `is`, `not`, `more`, `less`, `than`, `at`, `most`, `least`
 
@@ -1033,7 +1076,7 @@ All 30. There are no others.
 
 **Values** — `true`, `false`, `nothing`
 
-Six of these (`more`, `less`, `than`, `at`, `most`, `least`) only ever appear as part of a comparison such as `is more than`, so in practice there are 24 words to learn and six that come along with them.
+Six of these (`more`, `less`, `than`, `at`, `most`, `least`) only ever appear as part of a comparison such as `is more than`, so in practice there are 26 words to learn and six that come along with them.
 
 **Symbols** — `+` `-` `*` `/` `%` `(` `)` `[` `]` `{` `}` `,` `.` `:` `"` `#`
 
@@ -1135,6 +1178,8 @@ Every word and every action, with where to read more. Words shape a program; act
 | `repeat` | Do something a fixed number of whole times | 10 |
 | `set` | Create a name. Fails if it already exists | 4 |
 | `show` | Display something. Commas put several on one line | 5 |
+| `reach` | Create an action that may touch the outside | 11 |
+| `fail` | Stop the program with a message you write | 11 |
 | `stop` | Leave the innermost loop early | 10 |
 | `than` | Part of `is more than` and `is less than` | 8 |
 | `times` | Part of `repeat … times` | 10 |
