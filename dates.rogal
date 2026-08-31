@@ -74,31 +74,33 @@ make days_between(first, second)
   give day_number(second) - day_number(first)
 end
 
-make add_days(date, howMany)
-  set parts to date_parts(date)
-  set year to parts.year
-  set month to parts.month
-  set day to parts.day + howMany
+make date_from_day_number(total)
+  # Guess the year from the average length of one, then walk to it.
+  # Two or three steps, however far away the date is.
+  set year to round((total - 1) / 365.2425) + 1
+  if year is less than 1
+    set year to 1
+  end
 
-  while day is more than days_in_month(year, month)
-    change day to day - days_in_month(year, month)
+  while day_number(text(year) + "-01-01") is more than total
+    change year to year - 1
+  end
+  while day_number(text(year + 1) + "-01-01") is at most total
+    change year to year + 1
+  end
+
+  set left to total - day_number(text(year) + "-01-01") + 1
+  set month to 1
+  while left is more than days_in_month(year, month)
+    change left to left - days_in_month(year, month)
     change month to month + 1
-    if month is more than 12
-      change month to 1
-      change year to year + 1
-    end
   end
 
-  while day is less than 1
-    change month to month - 1
-    if month is less than 1
-      change month to 12
-      change year to year - 1
-    end
-    change day to day + days_in_month(year, month)
-  end
+  give text(year) + "-" + two_digits(month) + "-" + two_digits(left)
+end
 
-  give text(year) + "-" + two_digits(month) + "-" + two_digits(day)
+make add_days(date, howMany)
+  give date_from_day_number(day_number(date) + howMany)
 end
 
 make two_digits(n)

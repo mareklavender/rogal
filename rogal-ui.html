@@ -261,16 +261,29 @@
         <div class="ref-row"><code># note</code><span>A note to yourself, ignored when running.</span></div>
       </div>
       <div class="ref-block">
-        <h3>Built in, always available</h3>
+        <h3>Actions — 27 built in</h3>
         <div class="ref-row"><code>count has</code><span>How many; whether something is in there.</span></div>
         <div class="ref-row"><code>add remove</code><span>A new list with one item added or taken out. For two lists use <code>a + b</code>.</span></div>
         <div class="ref-row"><code>first last reverse</code><span>Reach into a list, or turn it round.</span></div>
-        <div class="ref-row"><code>sum</code><span>Add up a list of numbers.</span></div>
+        <div class="ref-row"><code>slice</code><span>Part of a list or text: <code>slice("hello", 2, 4)</code> gives <code>ell</code>.</span></div>
+        <div class="ref-row"><code>sum numbers</code><span>Add up a list; <code>numbers(1, 10)</code> makes one to count through.</span></div>
         <div class="ref-row"><code>sort_up sort_down</code><span>In order. Add a field name to sort records: <code>sort_up(people, "born")</code></span></div>
         <div class="ref-row"><code>join split</code><span>Text to list and back.</span></div>
+        <div class="ref-row"><code>replace find</code><span>Swap part of some text; say where it is, or <code>nothing</code>.</span></div>
         <div class="ref-row"><code>upper lower trim</code><span>Tidy up text.</span></div>
-        <div class="ref-row"><code>round random</code><span>Numbers. <code>round(x, 2)</code> for decimal places.</span></div>
+        <div class="ref-row"><code>align_left align_right</code><span>Pad to a width, for tables that line up.</span></div>
+        <div class="ref-row"><code>round random decimals</code><span>Numbers. <code>decimals(1.5, 2)</code> gives the text <code>1.50</code>.</span></div>
         <div class="ref-row"><code>text number keys</code><span>Convert between kinds; list a record's fields.</span></div>
+      </div>
+
+      <div class="ref-block">
+        <h3>Actions that reach outside — 5</h3>
+        <div class="ref-row"><code>read(name)</code><span>Read a text file. In this page it asks you to pick one.</span></div>
+        <div class="ref-row"><code>write(name, text)</code><span>Write a text file. Here it hands one back as a download.</span></div>
+        <div class="ref-row"><code>get(address)</code><span>Fetch a web address, as text.</span></div>
+        <div class="ref-row"><code>ask(question)</code><span>Ask the person something. Always gives text.</span></div>
+        <div class="ref-row"><code>now()</code><span>A record: date, time, weekday, and the parts.</span></div>
+        <div class="ref-row"><code>&nbsp;</code><span>Each needs a line of its own, and none can be used inside an action.</span></div>
       </div>
     </div>
     <p class="footnote">Five decisions do most of the work: <strong>blocks end with <code>end</code></strong>, so indentation can never break a program; <strong>comparisons are words</strong>, so <code>=</code> and <code>==</code> can't be confused; <strong><code>set</code> creates and <code>change</code> alters</strong>, so a typo can never quietly make a second variable; <strong>a name holds a value, never a link to someone else's</strong>, so nothing changes at a distance; and <strong>lists count from 1</strong>, matching how people already count.</p>
@@ -318,8 +331,11 @@ const browserHost = {
         reader.onerror = () => finish(() => reject(plainly(`I couldn't read that file.`, node)));
         reader.readAsText(file);
       });
+      // Browsers fire "cancel" when the picker is dismissed. Older ones don't,
+      // so a focus check stays behind it as a fallback.
+      input.addEventListener("cancel", () => finish(() => reject(refusal(name, node))));
       window.addEventListener("focus", () => {
-        setTimeout(() => { if (!input.files || !input.files.length) finish(() => reject(refusal(name, node))); }, 500);
+        setTimeout(() => { if (!input.files || !input.files.length) finish(() => reject(refusal(name, node))); }, 1500);
       }, { once: true });
 
       input.click();
@@ -540,6 +556,27 @@ for each item in items
 end
 show ""
 show align_left("Takings", 14) + align_right(decimals(total, 2), 8)`},
+
+  { name:"using a library", code:
+`# use brings in the actions from another file.
+# "dates" travels with this page, so it works here.
+# On your computer, put dates.rogal beside your program.
+
+use "dates"
+
+set moment to now()
+show "Today is " + long_date(moment.date)
+show "That's a " + weekday(moment.date)
+show ""
+
+set opening to "2026-01-01"
+show "Days since new year: " + days_between(opening, moment.date)
+show "Thirty days from now: " + long_date(add_days(moment.date, 30))
+show ""
+
+# A library holds only actions, so nothing runs
+# behind your back when you bring one in.
+show "February 2028 has " + days_in_month(2028, 2) + " days"`},
 
   { name:"a mistake", broken:true, code:
 `set total to 0

@@ -356,6 +356,63 @@ queue.push(async () => {
   else failures.push("use with no host should explain there is nowhere to look");
 });
 
+/* ---------- the dates library, and its agreement with now() ----------
+   now() names days from a Sunday-first list indexed by JavaScript's getDay().
+   dates.rogal names them from a Monday-first list indexed by its own day count.
+   Those two only agree because the orderings and the bases cancel. Change
+   either and nothing else would notice, so it is pinned here.            */
+
+const fs = require("fs");
+const datesHost = Object.assign({}, testHost, {
+  async library(name) {
+    if (name === "dates") return fs.readFileSync(__dirname + "/dates.rogal", "utf8");
+    const e = new Error(`no library "${name}"`); e.plain = true; e.line = 1; e.col = 1; e.len = 1; throw e;
+  },
+});
+
+function withDates(label, source, expected) { queue.push(async () => {
+  const r = await run(`use "dates"\n` + source, datesHost);
+  if (r.error) { failures.push(`${label}\n    got error: ${r.error.message}`); return; }
+  const got = r.output.join("\n");
+  if (got !== expected.join("\n")) {
+    failures.push(`${label}\n    expected: ${JSON.stringify(expected.join("\n"))}\n    got:      ${JSON.stringify(got)}`);
+    return;
+  }
+  passed++;
+}); }
+
+// Weekdays checked against dates whose day is a matter of record, so the
+// library is anchored on its own rather than only against now().
+withDates("weekdays of known dates",
+  `for each d in ["1969-07-20", "2000-01-01", "2024-02-29", "2026-08-30", "2026-08-31"]\n  show weekday(d)\nend`,
+  ["Sunday", "Saturday", "Thursday", "Sunday", "Monday"]);
+
+queue.push(async () => {
+  const r = await run(`use "dates"\nset moment to now()\nshow moment.weekday\nshow weekday(moment.date)`, datesHost);
+  if (r.error) { failures.push("now() and dates.weekday: " + r.error.message); return; }
+  if (r.output[0] !== r.output[1]) {
+    failures.push(`now() and dates.weekday disagree: now() says ${r.output[0]}, dates says ${r.output[1]}`);
+    return;
+  }
+  passed++;
+});
+
+withDates("days between", `show days_between("2026-01-01", "2026-08-22")\nshow days_between("2024-02-28", "2024-03-01")`, ["233", "2"]);
+withDates("adding days across a year", `show add_days("2026-12-25", 10)`, ["2027-01-04"]);
+withDates("taking days off across a leap day", `show add_days("2024-03-01", -1)`, ["2024-02-29"]);
+withDates("a century each way", `show add_days("2026-01-01", 36500)\nshow add_days("2026-01-01", -36500)`, ["2125-12-08", "1926-01-26"]);
+withDates("adding then counting agrees", `show days_between("2026-01-01", add_days("2026-01-01", 12345))`, ["12345"]);
+withDates("a date that isn't real", `show is_date("2026-02-30"), is_date("2024-02-29")`, ["false true"]);
+withDates("written out in full", `show long_date("2026-08-22")`, ["22 August 2026"]);
+
+/* ---------- what the new guards catch ---------- */
+
+fails("a library name can't be a path", `use "../secret"\nshow 1`, "isn't a library name");
+fails("slice running backwards", `show slice([1,2,3], 3, 1)`, "runs backwards");
+shows("an empty slice is still fine", `set xs to []\nshow slice(xs, 1, count(xs))`, ["[]"]);
+fails("a nothing from find explains itself",
+  `set line to "abc"\nset semi to find(line, ";")\nshow semi + 1`, `"find" didn't find`);
+
 /* ---------- report ---------- */
 
 (async () => {

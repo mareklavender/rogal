@@ -21,7 +21,7 @@ Average: 17.5
 
 Small enough to hold in your head, and solid enough to write real scripts in. That makes it a good first language, and a reasonable one to stay with.
 
-**Status:** working prototype, v0.9.0.
+**Status:** working prototype, v0.9.1.
 
 ---
 

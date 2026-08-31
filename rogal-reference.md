@@ -1,6 +1,6 @@
 # Rogal — Language Reference
 
-**Version 0.9** · Complete. Every word the language has is in this document.
+**Version 0.9.1** · Complete. Every word the language has is in this document.
 
 Rogal has 30 words and 32 actions — 27 built in, and 5 that reach outside the program. That's the whole language: nothing to install and nothing to import.
 
@@ -193,7 +193,7 @@ set count to 3
 
 Names start with a letter or `_` and may contain letters, digits and `_`. They are case-sensitive.
 
-All 32 action names are taken, so `set count to 0` won't work — `count` is already something. The error says which name clashed. Section 23 lists every one of them; `total`, `tally` and `how_many` are all free.
+All 30 words and all 32 action names are taken, so neither `set count to 0` nor `set at to 1` will work — `at` belongs to `is at least` — `count` is already something. The error says which name clashed. Section 23 lists every one of them; `total`, `tally` and `how_many` are all free.
 
 `change` also reaches inside lists and records:
 
@@ -617,19 +617,26 @@ set config to {owner: {name: "Ada", city: "London"}}
 show config.owner.city      # London
 ```
 
-**A record's fields are fixed when you create it.** `change` can alter a field but never invent one:
+**The dot needs a field that already exists. Brackets may create one.**
+
+`change person.age` alters a field you wrote down when you made the record, and fails if there isn't one:
 
 ```rogal
 set person to {name: "Ada"}
 change person.age to 36
 ```
-> Line 2: This record has no field called `age`, so there's nothing to change. It has: name. A record's fields are fixed when you create it.
+> Line 2: This record has no field called `age`, so there's nothing to change. It has: name.
 
-So a misspelling is caught rather than quietly making a second field alongside the real one.
+So a misspelling with the dot is caught, rather than quietly making a second field beside the real one. If you know what a record will hold, declare it all when you create it, using `nothing` for what isn't known yet:
+
+```rogal
+set person to {name: "Ada", age: nothing}
+change person.age to 36
+```
 
 ### Looking a record up by name
 
-The dot needs a field you wrote down yourself. When the name is worked out while the program runs — counting words, grouping things, keeping a tally — use square brackets and text instead:
+When the name is worked out while the program runs — counting words, grouping things, keeping a tally — use square brackets and text. This is the one place a record can grow, and you had to type the quotes to get there, so it can't happen by accident:
 
 ```rogal
 set counts to {}
@@ -646,14 +653,9 @@ show counts              # {the: 3, cat: 2, dog: 1}
 show counts["the"]       # 3
 ```
 
-`change ...["key"] to ...` adds the entry if it isn't there yet. That's the one place a record can grow, and you had to type the quotes to get it, so it can't happen by accident.
+Reading a name that isn't there is still an error, so check with `has` when you're not sure.
 
-Reading a name that isn't there is still an error, so check with `has` first when you're not sure. Declare everything the record will hold when you create it, using `nothing` for anything not known yet:
-
-```rogal
-set person to {name: "Ada", age: nothing}
-change person.age to 36
-```
+In one line: **the dot is for a shape you already know; brackets are for a name the program works out.**
 
 ---
 
@@ -749,7 +751,18 @@ show find("hello world", "world")    # 7
 
 `slice` counts both ends in, so `slice(word, 2, 4)` gives you letters two, three and four. Ask for more than there is and it stops at the end, which makes truncating easy: `slice(long, 1, 20)` never fails.
 
-`find` gives `nothing` when the text isn't there, so check with `has` first if you're not sure.
+`find` gives `nothing` when the text isn't there, so check what it hands back before using it:
+
+```rogal
+set line to "name,age,city"
+
+set comma to find(line, ",")
+if comma is not nothing
+  show slice(line, 1, comma - 1)      # name
+end
+```
+
+Forget the check and the error names where the `nothing` came from, and the test to add.
 
 ### Laying things out
 

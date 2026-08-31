@@ -1,4 +1,4 @@
-const ROGAL_VERSION = "0.9.0";
+const ROGAL_VERSION = "0.9.1";
 
 /* ============================================================
    Rogal — core language
@@ -626,12 +626,16 @@ function sameValue(a, b) {
 }
 
 // Every binding takes a copy, so two names can never share one list or record.
-function copyValue(v) {
+function copyValue(v, depth) {
+  depth = depth || 0;
+  if (depth > 200)
+    throw new RogalError("This value is nested more than 200 deep, which is further than Rogal follows.", null,
+      { hint: "A list inside a list inside a list, and so on. Something has probably gone in a circle." });
   if (v === null || typeof v !== "object") return v;
-  if (Array.isArray(v)) return v.map(copyValue);
+  if (Array.isArray(v)) return v.map(x => copyValue(x, depth + 1));
   if (isRecord(v)) {
     const out = {};
-    for (const k of Object.keys(v.fields)) out[k] = copyValue(v.fields[k]);
+    for (const k of Object.keys(v.fields)) out[k] = copyValue(v.fields[k], depth + 1);
     return makeRecord(out);
   }
   return v;                       // actions are definitions, not data
@@ -778,7 +782,7 @@ class Interpreter {
     this.globals = new Scope(this.builtins, "global");
     this.program = null;
     this.depth = 0;
-    this.fromAsk = new Set();
+    this.cameFrom = new Map();   // name -> the action that produced its value
   }
 
   tick(tok) {
@@ -900,17 +904,22 @@ class Interpreter {
     return v;
   }
 
-  // Remembers which names hold an answer from "ask", so the error can say so.
+  // Remembers which action produced a name's value, so an error can say where
+  // an unexpected text or a "nothing" came from.
   noteAskOrigin(node) {
-    if (node.target && node.target.kind === "name") {
-      const v = node.value;
-      const isAsk = v && v.kind === "call" && v.callee && v.callee.kind === "name" && v.callee.name === "ask";
-      if (isAsk) this.fromAsk.add(node.target.name); else this.fromAsk.delete(node.target.name);
-    }
+    if (!node.target || node.target.kind !== "name") return;
+    const v = node.value;
+    const from = v && v.kind === "call" && v.callee && v.callee.kind === "name" ? v.callee.name : null;
+    if (from === "ask" || from === "find") this.cameFrom.set(node.target.name, from);
+    else this.cameFrom.delete(node.target.name);
   }
 
   askOrigin(node) {
-    return node && node.kind === "name" && this.fromAsk.has(node.name) ? node.name : null;
+    return node && node.kind === "name" && this.cameFrom.get(node.name) === "ask" ? node.name : null;
+  }
+
+  nothingOrigin(node) {
+    return node && node.kind === "name" && this.cameFrom.get(node.name) === "find" ? node.name : null;
   }
 
   async execChange(node, scope) {
@@ -1165,11 +1174,26 @@ class Interpreter {
         return toDisplay(l) + toDisplay(r);
       }
       if (Array.isArray(l) && Array.isArray(r)) return l.concat(r);
+      if (l === null || r === null) {
+        const missing = (l === null ? this.nothingOrigin(node.left) : null) || (r === null ? this.nothingOrigin(node.right) : null);
+        throw new RogalError(`I can't add ${typeWord(l)} to ${typeWord(r)}.`, node.tok,
+          { hint: missing
+              ? `"${missing}" is nothing, because "find" didn't find what it was looking for. Check with "if ${missing} is not nothing" before using it.`
+              : `Something here has no value yet. An action with no "give" gives nothing, and so does "find" when it finds nothing.` });
+      }
       throw new RogalError(`I can't add ${typeWord(l)} to ${typeWord(r)}.`, node.tok);
     }
 
     if (typeof l !== "number" || typeof r !== "number") {
       const word = { "-": "subtract", "*": "multiply", "/": "divide", "%": "take the remainder of" }[op];
+      // A "nothing" in a sum nearly always came from a "find" that found nothing.
+      if (l === null || r === null) {
+        const missing = (l === null ? this.nothingOrigin(node.left) : null) || (r === null ? this.nothingOrigin(node.right) : null);
+        throw new RogalError(`I can't ${word} when one side is nothing.`, node.tok,
+          { hint: missing
+              ? `"${missing}" is nothing, because "find" didn't find what it was looking for. Check with "if ${missing} is not nothing" before using it.`
+              : `Something here has no value yet. "find" gives nothing when it finds nothing, and an action with no "give" gives nothing too.` });
+      }
       const asked = this.askOrigin(node.left) || this.askOrigin(node.right);
       throw new RogalError(`I can only ${word} numbers, but got ${describeValue(l)} and ${describeValue(r)}.`, node.tok,
         { hint: asked
@@ -1436,6 +1460,11 @@ function installBuiltins(scope, interp) {
     }
     if (from < 1)
       throw new RogalError(`"slice" starts counting at 1, but was asked to start at ${fmtNumber(from)}.`, n.tok);
+    // to === from - 1 is the ordinary empty range, as in slice(xs, 1, count(xs))
+    // on an empty list. Anything further back is a mistake.
+    if (to < from - 1)
+      throw new RogalError(`"slice" was asked for positions ${fmtNumber(from)} to ${fmtNumber(to)}, which runs backwards.`, n.tok,
+        { hint: `The second position must be at least one less than the first. Did you mean slice(..., ${fmtNumber(to)}, ${fmtNumber(from)})?` });
     const last = Math.min(to, thing.length);
     if (from > thing.length || last < from) return Array.isArray(thing) ? [] : "";
     return thing.slice(from - 1, last);
@@ -1600,6 +1629,12 @@ async function gatherLibraries(program, host, seen, chain) {
   for (const st of program.body) {
     if (st.kind !== "use") continue;
     const name = st.name;
+
+    // A library name is a name, never a path. Without this, use "../secret"
+    // would read whatever it liked from outside the program's folder.
+    if (!/^[A-Za-z0-9_-]+$/.test(name))
+      throw new RogalError(`"${name}" isn't a library name.`, st.nameTok,
+        { hint: `A library name is letters, digits, "-" and "_" only — no folders and no dots. Rogal looks for ${name.replace(/[^A-Za-z0-9_-]/g, "")}.rogal beside your program.` });
 
     if (chain.includes(name))
       throw new RogalError(`"${name}" ends up using itself.`, st.nameTok,

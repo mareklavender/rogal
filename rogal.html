@@ -183,7 +183,7 @@
 <div class="wrap">
 
   <header class="masthead">
-    <p class="eyebrow">Version 0.9.0 · runs entirely in this page</p>
+    <p class="eyebrow">Version 0.9.1 · runs entirely in this page</p>
     <h1 class="wordmark">Rogal</h1>
     <p class="standfirst">A small language that is genuinely easy to write. Thirty words, one way to write each thing, and a mistake tells you <em>what to do about it</em> instead of what went wrong inside the machine.</p>
   </header>
@@ -261,16 +261,29 @@
         <div class="ref-row"><code># note</code><span>A note to yourself, ignored when running.</span></div>
       </div>
       <div class="ref-block">
-        <h3>Built in, always available</h3>
+        <h3>Actions — 27 built in</h3>
         <div class="ref-row"><code>count has</code><span>How many; whether something is in there.</span></div>
         <div class="ref-row"><code>add remove</code><span>A new list with one item added or taken out. For two lists use <code>a + b</code>.</span></div>
         <div class="ref-row"><code>first last reverse</code><span>Reach into a list, or turn it round.</span></div>
-        <div class="ref-row"><code>sum</code><span>Add up a list of numbers.</span></div>
+        <div class="ref-row"><code>slice</code><span>Part of a list or text: <code>slice("hello", 2, 4)</code> gives <code>ell</code>.</span></div>
+        <div class="ref-row"><code>sum numbers</code><span>Add up a list; <code>numbers(1, 10)</code> makes one to count through.</span></div>
         <div class="ref-row"><code>sort_up sort_down</code><span>In order. Add a field name to sort records: <code>sort_up(people, "born")</code></span></div>
         <div class="ref-row"><code>join split</code><span>Text to list and back.</span></div>
+        <div class="ref-row"><code>replace find</code><span>Swap part of some text; say where it is, or <code>nothing</code>.</span></div>
         <div class="ref-row"><code>upper lower trim</code><span>Tidy up text.</span></div>
-        <div class="ref-row"><code>round random</code><span>Numbers. <code>round(x, 2)</code> for decimal places.</span></div>
+        <div class="ref-row"><code>align_left align_right</code><span>Pad to a width, for tables that line up.</span></div>
+        <div class="ref-row"><code>round random decimals</code><span>Numbers. <code>decimals(1.5, 2)</code> gives the text <code>1.50</code>.</span></div>
         <div class="ref-row"><code>text number keys</code><span>Convert between kinds; list a record's fields.</span></div>
+      </div>
+
+      <div class="ref-block">
+        <h3>Actions that reach outside — 5</h3>
+        <div class="ref-row"><code>read(name)</code><span>Read a text file. In this page it asks you to pick one.</span></div>
+        <div class="ref-row"><code>write(name, text)</code><span>Write a text file. Here it hands one back as a download.</span></div>
+        <div class="ref-row"><code>get(address)</code><span>Fetch a web address, as text.</span></div>
+        <div class="ref-row"><code>ask(question)</code><span>Ask the person something. Always gives text.</span></div>
+        <div class="ref-row"><code>now()</code><span>A record: date, time, weekday, and the parts.</span></div>
+        <div class="ref-row"><code>&nbsp;</code><span>Each needs a line of its own, and none can be used inside an action.</span></div>
       </div>
     </div>
     <p class="footnote">Five decisions do most of the work: <strong>blocks end with <code>end</code></strong>, so indentation can never break a program; <strong>comparisons are words</strong>, so <code>=</code> and <code>==</code> can't be confused; <strong><code>set</code> creates and <code>change</code> alters</strong>, so a typo can never quietly make a second variable; <strong>a name holds a value, never a link to someone else's</strong>, so nothing changes at a distance; and <strong>lists count from 1</strong>, matching how people already count.</p>
@@ -278,7 +291,7 @@
 </div>
 
 <script>
-const ROGAL_VERSION = "0.9.0";
+const ROGAL_VERSION = "0.9.1";
 
 /* ============================================================
    Rogal — core language
@@ -906,12 +919,16 @@ function sameValue(a, b) {
 }
 
 // Every binding takes a copy, so two names can never share one list or record.
-function copyValue(v) {
+function copyValue(v, depth) {
+  depth = depth || 0;
+  if (depth > 200)
+    throw new RogalError("This value is nested more than 200 deep, which is further than Rogal follows.", null,
+      { hint: "A list inside a list inside a list, and so on. Something has probably gone in a circle." });
   if (v === null || typeof v !== "object") return v;
-  if (Array.isArray(v)) return v.map(copyValue);
+  if (Array.isArray(v)) return v.map(x => copyValue(x, depth + 1));
   if (isRecord(v)) {
     const out = {};
-    for (const k of Object.keys(v.fields)) out[k] = copyValue(v.fields[k]);
+    for (const k of Object.keys(v.fields)) out[k] = copyValue(v.fields[k], depth + 1);
     return makeRecord(out);
   }
   return v;                       // actions are definitions, not data
@@ -1058,7 +1075,7 @@ class Interpreter {
     this.globals = new Scope(this.builtins, "global");
     this.program = null;
     this.depth = 0;
-    this.fromAsk = new Set();
+    this.cameFrom = new Map();   // name -> the action that produced its value
   }
 
   tick(tok) {
@@ -1180,17 +1197,22 @@ class Interpreter {
     return v;
   }
 
-  // Remembers which names hold an answer from "ask", so the error can say so.
+  // Remembers which action produced a name's value, so an error can say where
+  // an unexpected text or a "nothing" came from.
   noteAskOrigin(node) {
-    if (node.target && node.target.kind === "name") {
-      const v = node.value;
-      const isAsk = v && v.kind === "call" && v.callee && v.callee.kind === "name" && v.callee.name === "ask";
-      if (isAsk) this.fromAsk.add(node.target.name); else this.fromAsk.delete(node.target.name);
-    }
+    if (!node.target || node.target.kind !== "name") return;
+    const v = node.value;
+    const from = v && v.kind === "call" && v.callee && v.callee.kind === "name" ? v.callee.name : null;
+    if (from === "ask" || from === "find") this.cameFrom.set(node.target.name, from);
+    else this.cameFrom.delete(node.target.name);
   }
 
   askOrigin(node) {
-    return node && node.kind === "name" && this.fromAsk.has(node.name) ? node.name : null;
+    return node && node.kind === "name" && this.cameFrom.get(node.name) === "ask" ? node.name : null;
+  }
+
+  nothingOrigin(node) {
+    return node && node.kind === "name" && this.cameFrom.get(node.name) === "find" ? node.name : null;
   }
 
   async execChange(node, scope) {
@@ -1445,11 +1467,26 @@ class Interpreter {
         return toDisplay(l) + toDisplay(r);
       }
       if (Array.isArray(l) && Array.isArray(r)) return l.concat(r);
+      if (l === null || r === null) {
+        const missing = (l === null ? this.nothingOrigin(node.left) : null) || (r === null ? this.nothingOrigin(node.right) : null);
+        throw new RogalError(`I can't add ${typeWord(l)} to ${typeWord(r)}.`, node.tok,
+          { hint: missing
+              ? `"${missing}" is nothing, because "find" didn't find what it was looking for. Check with "if ${missing} is not nothing" before using it.`
+              : `Something here has no value yet. An action with no "give" gives nothing, and so does "find" when it finds nothing.` });
+      }
       throw new RogalError(`I can't add ${typeWord(l)} to ${typeWord(r)}.`, node.tok);
     }
 
     if (typeof l !== "number" || typeof r !== "number") {
       const word = { "-": "subtract", "*": "multiply", "/": "divide", "%": "take the remainder of" }[op];
+      // A "nothing" in a sum nearly always came from a "find" that found nothing.
+      if (l === null || r === null) {
+        const missing = (l === null ? this.nothingOrigin(node.left) : null) || (r === null ? this.nothingOrigin(node.right) : null);
+        throw new RogalError(`I can't ${word} when one side is nothing.`, node.tok,
+          { hint: missing
+              ? `"${missing}" is nothing, because "find" didn't find what it was looking for. Check with "if ${missing} is not nothing" before using it.`
+              : `Something here has no value yet. "find" gives nothing when it finds nothing, and an action with no "give" gives nothing too.` });
+      }
       const asked = this.askOrigin(node.left) || this.askOrigin(node.right);
       throw new RogalError(`I can only ${word} numbers, but got ${describeValue(l)} and ${describeValue(r)}.`, node.tok,
         { hint: asked
@@ -1716,6 +1753,11 @@ function installBuiltins(scope, interp) {
     }
     if (from < 1)
       throw new RogalError(`"slice" starts counting at 1, but was asked to start at ${fmtNumber(from)}.`, n.tok);
+    // to === from - 1 is the ordinary empty range, as in slice(xs, 1, count(xs))
+    // on an empty list. Anything further back is a mistake.
+    if (to < from - 1)
+      throw new RogalError(`"slice" was asked for positions ${fmtNumber(from)} to ${fmtNumber(to)}, which runs backwards.`, n.tok,
+        { hint: `The second position must be at least one less than the first. Did you mean slice(..., ${fmtNumber(to)}, ${fmtNumber(from)})?` });
     const last = Math.min(to, thing.length);
     if (from > thing.length || last < from) return Array.isArray(thing) ? [] : "";
     return thing.slice(from - 1, last);
@@ -1881,6 +1923,12 @@ async function gatherLibraries(program, host, seen, chain) {
     if (st.kind !== "use") continue;
     const name = st.name;
 
+    // A library name is a name, never a path. Without this, use "../secret"
+    // would read whatever it liked from outside the program's folder.
+    if (!/^[A-Za-z0-9_-]+$/.test(name))
+      throw new RogalError(`"${name}" isn't a library name.`, st.nameTok,
+        { hint: `A library name is letters, digits, "-" and "_" only — no folders and no dots. Rogal looks for ${name.replace(/[^A-Za-z0-9_-]/g, "")}.rogal beside your program.` });
+
     if (chain.includes(name))
       throw new RogalError(`"${name}" ends up using itself.`, st.nameTok,
         { hint: `The chain was: ${chain.concat(name).join(" → ")}. A library can't depend on itself, directly or in a circle.` });
@@ -1988,8 +2036,11 @@ const browserHost = {
         reader.onerror = () => finish(() => reject(plainly(`I couldn't read that file.`, node)));
         reader.readAsText(file);
       });
+      // Browsers fire "cancel" when the picker is dismissed. Older ones don't,
+      // so a focus check stays behind it as a fallback.
+      input.addEventListener("cancel", () => finish(() => reject(refusal(name, node))));
       window.addEventListener("focus", () => {
-        setTimeout(() => { if (!input.files || !input.files.length) finish(() => reject(refusal(name, node))); }, 500);
+        setTimeout(() => { if (!input.files || !input.files.length) finish(() => reject(refusal(name, node))); }, 1500);
       }, { once: true });
 
       input.click();
@@ -2210,6 +2261,27 @@ for each item in items
 end
 show ""
 show align_left("Takings", 14) + align_right(decimals(total, 2), 8)`},
+
+  { name:"using a library", code:
+`# use brings in the actions from another file.
+# "dates" travels with this page, so it works here.
+# On your computer, put dates.rogal beside your program.
+
+use "dates"
+
+set moment to now()
+show "Today is " + long_date(moment.date)
+show "That's a " + weekday(moment.date)
+show ""
+
+set opening to "2026-01-01"
+show "Days since new year: " + days_between(opening, moment.date)
+show "Thirty days from now: " + long_date(add_days(moment.date, 30))
+show ""
+
+# A library holds only actions, so nothing runs
+# behind your back when you bring one in.
+show "February 2028 has " + days_in_month(2028, 2) + " days"`},
 
   { name:"a mistake", broken:true, code:
 `set total to 0
