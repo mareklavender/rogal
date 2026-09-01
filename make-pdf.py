@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# Rogal — a small programming language.
+# Copyright 2026 Marek "Lavender" Bartoszak
+# Licensed under the Apache License, Version 2.0. See LICENSE.
+
 """Typesets rogal-reference.md as a printable PDF manual."""
 
 import re, subprocess, sys, html as htmlmod
@@ -209,12 +213,12 @@ page = f"""<!DOCTYPE html>
   <p class="tp-eyebrow">Language reference · version {version}</p>
   <h1 class="tp-name" style="display:block">Rogal</h1>
   <hr class="tp-rule">
-  <p class="tp-stand">Thirty words, one way to write each thing, and a mistake tells you
+  <p class="tp-stand">Thirty-two words, one way to write each thing, and a mistake tells you
   <em>what to do about it</em> instead of what went wrong inside the machine.</p>
   <p class="tp-stand" style="font-size:10.5pt;color:#4a4459">Everything the language has is in here:
-  all 30 words and all 32 actions, with a list of the lot at the end.</p>
+  all 32 words and all 32 actions, with a list of the lot at the end.</p>
   <div class="tp-meta">
-    <b>30</b> words &nbsp;·&nbsp; <b>32</b> actions &nbsp;·&nbsp; browser or terminal<br>
+    <b>32</b> words &nbsp;·&nbsp; <b>32</b> actions &nbsp;·&nbsp; browser or terminal<br>
     Generated {date.today().strftime('%-d %B %Y')}
   </div>
 </div>

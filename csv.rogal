@@ -1,3 +1,7 @@
+# Rogal — a small programming language.
+# Copyright 2026 Marek "Lavender" Bartoszak
+# Licensed under the Apache License, Version 2.0. See LICENSE.
+
 # csv.rogal — reading and writing comma-separated tables, written in Rogal.
 #
 # Handles quoted fields, so a comma or a quote mark inside a value is safe:

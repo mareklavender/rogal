@@ -1,6 +1,6 @@
 # Rogal — Language Reference
 
-**Version 0.9.2** · Complete. Every word the language has is in this document.
+**Version 0.9.3** · Complete. Every word the language has is in this document.
 
 Rogal has 32 words and 32 actions — 27 built in, and 5 that reach outside the program. That's the whole language: nothing to install and nothing to import.
 
@@ -122,7 +122,19 @@ Leave one out and Rogal says how many blocks were opened, how many `end`s it fou
 
 There is a seventh kind you create yourself — an **action**, made with `make`. See section 9.
 
-Inside text you can use `\n` for a new line, `\"` for a quote mark, and `\\` for a backslash.
+Inside text you can use `\n` for a new line, `\r` for a carriage return, `\t` for a tab, `\"` for a quote mark, and `\\` for a backslash.
+
+Text is written on one line. For a block of it, put the lines in a list and join them:
+
+```rogal
+set letter to join([
+  "Dear Ada,",
+  "",
+  "The engine works."
+], "\n")
+```
+
+That's a little longer than a block of quoted text would be, and it has the advantage of showing exactly where the line breaks are — which matters in a language that ignores indentation everywhere else.
 
 ---
 
@@ -298,7 +310,7 @@ show round(sum(prices) / count(prices))
 
 Nest as deeply as you like. There is no limit and no special syntax for it.
 
-**What does not combine:** a statement can never go inside an expression. These are all wrong:
+**What doesn't combine:** a statement can never go inside an expression. These are all wrong:
 
 ```rogal
 set x to show 5            # show is a statement, not a value
@@ -488,7 +500,7 @@ end
 
 `stop` works in all three loops and leaves only the innermost one.
 
-**A loop that never finishes** is stopped automatically after about four million steps or five seconds, with a message saying so. It will not hang.
+**A loop that never finishes** is stopped automatically after about four million steps or five seconds, with a message saying so. It won't hang.
 
 ---
 
@@ -504,7 +516,7 @@ end
 show double(21)        # 42
 ```
 
-**An action sees only what you pass in.** It cannot read or alter anything outside itself, so its first line lists everything it uses:
+**An action sees only what you pass in.** It can't read or alter anything outside itself, so its first line lists everything it uses:
 
 ```rogal
 set tax to 0.2
@@ -754,7 +766,7 @@ show count(add(names, ["Alan", "Grace"]))   # 2
 show count(names + ["Alan", "Grace"])       # 3
 ```
 
-If you're reaching for `add` with square brackets in the second slot, you almost certainly want `+`. Note that `join` is a third thing again — it turns one list into text.
+If you're reaching for `add` with square brackets in the second slot, you almost certainly want `+`. `join` is a third thing again — it turns one list into text.
 
 Sorting records needs the field name in quotes:
 
@@ -974,9 +986,31 @@ Using the same library twice does no harm; the second `use` is ignored.
 
 ### Where it looks
 
-Two libraries travel with Rogal: **`dates`** for counting days, adding them and naming weekdays, and **`csv`** for reading and writing comma-separated tables, quoted fields included. Both are written in Rogal, so you can open them and read them.
+Three libraries travel with Rogal, all written in Rogal itself so you can open them and read them:
 
-On your computer, `use "dates"` looks for `dates.rogal` next to your program, then next to Rogal itself. In a browser there are no files, so only the libraries that travel with the page are available — `dates` is one of them, and anything else says so plainly.
+| Library | What it does |
+|---|---|
+| `dates` | Counting days, adding them, naming weekdays and months |
+| `csv` | Reading and writing comma-separated tables, quoted fields included |
+| `json` | Turning JSON text into values and back, which is what `get` usually hands you |
+
+```rogal
+use "json"
+
+set reply to get("https://example.com/things.json")
+set things to parse_json(reply)
+show things[1].name
+```
+
+They're written character by character, so they're quick for what an address gives back and slow for anything very large. A few thousand rows of CSV is a second or so; much past that and the program runs out of its time.
+
+### Adding your own
+
+On your computer, put `mylib.rogal` next to your program and `use "mylib"` finds it. Rogal looks beside your program first and then beside itself, so your own version of a name wins over one that shipped.
+
+In the playground, the **+ library** button takes a `.rogal` file and makes it available for as long as the tab is open. Same rule: yours wins.
+
+On your computer, `use "dates"` looks for `dates.rogal` next to your program, then next to Rogal itself. In a browser there are no files, so only libraries that travel with the page or that you have added are available — `dates` is one of them, and anything else says so plainly.
 
 ## 17. Order of operations
 
@@ -1080,7 +1114,7 @@ Six of these (`more`, `less`, `than`, `at`, `most`, `least`) only ever appear as
 
 **Symbols** — `+` `-` `*` `/` `%` `(` `)` `[` `]` `{` `}` `,` `.` `:` `"` `#`
 
-## 21. What Rogal does not have yet
+## 21. What Rogal doesn't have yet
 
 The edges, so nothing catches you out:
 
@@ -1225,7 +1259,7 @@ Every word and every action, with where to read more. Words shape a program; act
 
 ### Actions that reach outside the program
 
-These five are different in kind. Each needs a line of its own, and none can be used inside an action — so everything you write yourself stays free of surprises.
+These five are different in kind. Each needs a line of its own, and nyou can be used inside an action — so everything you write yourself stays free of surprises.
 
 | Action | What it does | Section |
 |---|---|---|

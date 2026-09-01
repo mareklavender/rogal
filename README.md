@@ -21,7 +21,7 @@ Average: 17.5
 
 Small enough to hold in your head, and solid enough to write real scripts in. That makes it a good first language, and a reasonable one to stay with.
 
-**Status:** working prototype, v0.9.2.
+**Status:** working prototype, v0.9.3. Licensed under Apache 2.0.
 
 ---
 
@@ -55,6 +55,26 @@ Any of these give you a URL in a minute or two:
 
 On an iPhone with no hosting, **Documents by Readdle** has a proper browser inside it and will run the file from local storage.
 
+## Libraries
+
+Three come with Rogal, all written in Rogal itself:
+
+| Library | What it does |
+|---|---|
+| [`dates.rogal`](dates.rogal) | Counting days, adding them, naming weekdays |
+| [`csv.rogal`](csv.rogal) | Comma-separated tables, quoted fields included |
+| [`json.rogal`](json.rogal) | JSON text into values and back |
+
+```rogal
+use "json"
+
+set reply to get("https://example.com/things.json")
+set things to parse_json(reply)
+show things[1].name
+```
+
+To add your own, put `mylib.rogal` next to your program. In the playground, use the **+ library** button.
+
 ## How it's put together
 
 The reasoning behind these is in the [reference](rogal-reference.md), also available as a [PDF](rogal-reference.pdf).
@@ -70,3 +90,7 @@ The reasoning behind these is in the [reference](rogal-reference.md), also avail
 - **A library holds only actions.** Nothing runs behind your back when you bring one in.
 
 Working on the language itself is covered in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Licence
+
+Apache 2.0. See [LICENSE](LICENSE).

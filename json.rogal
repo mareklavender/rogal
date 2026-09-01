@@ -1,0 +1,286 @@
+# Rogal — a small programming language.
+# Copyright 2026 Marek "Lavender" Bartoszak
+# Licensed under the Apache License, Version 2.0. See LICENSE.
+
+# json.rogal — reading and writing JSON, written in Rogal itself.
+#
+#   set reply to get("https://example.com/things.json")
+#   set things to parse_json(reply)
+#   show things[1].name
+#
+# JSON's true, false and null become Rogal's true, false and nothing.
+# Objects become records, arrays become lists, numbers become numbers.
+#
+# Written character by character, so it's fine for what an address gives
+# back and slow for anything large. Open it and got it.
+
+make json_space(letter)
+  give letter is " " or letter is "\n" or letter is "\t" or letter is "\r"
+end
+
+make json_skip(as_text, i)
+  set here to i
+  while here is at most count(as_text) and json_space(as_text[here])
+    change here to here + 1
+  end
+  give here
+end
+
+# Every reader gives back {value: ..., next: position after what it got}
+
+make json_read_string(as_text, i)
+  set here to i + 1
+  set out to ""
+
+  while here is at most count(as_text)
+    set letter to as_text[here]
+
+    if letter is "\""
+      give {value: out, next: here + 1}
+    end
+
+    if letter is "\\"
+      if here is count(as_text)
+        fail "A string ended in the middle of an escape"
+      end
+      set what to as_text[here + 1]
+      if what is "n"
+        change out to out + "\n"
+      else if what is "t"
+        change out to out + "\t"
+      else if what is "r"
+        change out to out + "\r"
+      else if what is "u"
+        # \uXXXX is left as written rather than guessed at
+        change out to out + slice(as_text, here, here + 5)
+        change here to here + 4
+      else
+        change out to out + what
+      end
+      change here to here + 2
+    else
+      change out to out + letter
+      change here to here + 1
+    end
+  end
+
+  fail "A string was never closed"
+end
+
+make json_read_number(as_text, i)
+  set here to i
+  set digits to ""
+  set allowed to "-+.eE0123456789"
+
+  while here is at most count(as_text) and has(allowed, as_text[here])
+    change digits to digits + as_text[here]
+    change here to here + 1
+  end
+
+  give {value: number(digits), next: here}
+end
+
+make json_read_word(as_text, i, word, becomes)
+  if slice(as_text, i, i + count(word) - 1) is word
+    give {value: becomes, next: i + count(word)}
+  end
+  give nothing
+end
+
+make json_read_list(as_text, i)
+  set items to []
+  set here to json_skip(as_text, i + 1)
+
+  if here is at most count(as_text) and as_text[here] is "]"
+    give {value: items, next: here + 1}
+  end
+
+  set going to true
+  while going
+    set got to json_read_value(as_text, here)
+    change items to add(items, got.value)
+    change here to json_skip(as_text, got.next)
+
+    if here is more than count(as_text)
+      fail "A list was never closed with ]"
+    end
+
+    if as_text[here] is ","
+      change here to json_skip(as_text, here + 1)
+    else if as_text[here] is "]"
+      change going to false
+      change here to here + 1
+    else
+      fail "Expected , or ] in a list, found " + as_text[here]
+    end
+  end
+
+  give {value: items, next: here}
+end
+
+make json_read_record(as_text, i)
+  set record to {}
+  set here to json_skip(as_text, i + 1)
+
+  if here is at most count(as_text) and as_text[here] is "}"
+    give {value: record, next: here + 1}
+  end
+
+  set going to true
+  while going
+    if here is more than count(as_text) or as_text[here] is not "\""
+      fail "Expected a name in quotes inside an object"
+    end
+
+    set name to json_read_string(as_text, here)
+    change here to json_skip(as_text, name.next)
+
+    if here is more than count(as_text) or as_text[here] is not ":"
+      fail "Expected : after the name " + name.value
+    end
+
+    set got to json_read_value(as_text, json_skip(as_text, here + 1))
+    change record[name.value] to got.value
+    change here to json_skip(as_text, got.next)
+
+    if here is more than count(as_text)
+      fail "An object was never closed with }"
+    end
+
+    if as_text[here] is ","
+      change here to json_skip(as_text, here + 1)
+    else if as_text[here] is "}"
+      change going to false
+      change here to here + 1
+    else
+      fail "Expected , or } in an object, found " + as_text[here]
+    end
+  end
+
+  give {value: record, next: here}
+end
+
+make json_read_value(as_text, i)
+  set here to json_skip(as_text, i)
+
+  if here is more than count(as_text)
+    fail "The as_text ended where a value was expected"
+  end
+
+  set letter to as_text[here]
+
+  if letter is "\""
+    give json_read_string(as_text, here)
+  end
+  if letter is "{"
+    give json_read_record(as_text, here)
+  end
+  if letter is "["
+    give json_read_list(as_text, here)
+  end
+
+  set as_true to json_read_word(as_text, here, "true", true)
+  if as_true is not nothing
+    give as_true
+  end
+  set as_false to json_read_word(as_text, here, "false", false)
+  if as_false is not nothing
+    give as_false
+  end
+  set as_null to json_read_word(as_text, here, "null", nothing)
+  if as_null is not nothing
+    give as_null
+  end
+
+  if has("-0123456789", letter)
+    give json_read_number(as_text, here)
+  end
+
+  fail "Not something JSON allows here: " + letter
+end
+
+make parse_json(as_text)
+  set got to json_read_value(as_text, 1)
+  set after to json_skip(as_text, got.next)
+  if after is at most count(as_text)
+    fail "There is more as_text after the value ends"
+  end
+  give got.value
+end
+
+# ---- the other direction ----
+
+make json_escape(value)
+  set out to ""
+  for each letter in value
+    if letter is "\""
+      change out to out + "\\\""
+    else if letter is "\\"
+      change out to out + "\\\\"
+    else if letter is "\n"
+      change out to out + "\\n"
+    else if letter is "\t"
+      change out to out + "\\t"
+    else
+      change out to out + letter
+    end
+  end
+  give "\"" + out + "\""
+end
+
+make json(value)
+  if value is nothing
+    give "null"
+  end
+  if value is true
+    give "true"
+  end
+  if value is false
+    give "false"
+  end
+  give json_of_the_rest(value)
+end
+
+make json_of_the_rest(value)
+  set as_text to text(value)
+
+  # a list shows itself in square brackets, a record in curly ones
+  if slice(as_text, 1, 1) is "[" and count(as_text) is more than 1
+    set parts to []
+    for each item in value
+      change parts to add(parts, json(item))
+    end
+    give "[" + join(parts, ",") + "]"
+  end
+
+  if slice(as_text, 1, 1) is "{"
+    set parts to []
+    for each name in keys(value)
+      change parts to add(parts, json_escape(name) + ":" + json(value[name]))
+    end
+    give "{" + join(parts, ",") + "}"
+  end
+
+  if as_text is "[]"
+    give "[]"
+  end
+
+  # as_text needs quoting; a number is already written the way JSON wants it
+  if number_or_nothing(as_text) is nothing
+    give json_escape(as_text)
+  end
+  give as_text
+end
+
+make number_or_nothing(as_text)
+  if as_text is ""
+    give nothing
+  end
+  set allowed to "-.0123456789"
+  for each letter in as_text
+    if not has(allowed, letter)
+      give nothing
+    end
+  end
+  give as_text
+end

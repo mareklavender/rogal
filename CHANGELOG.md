@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.3
+
+- A `json` library, written in Rogal: `parse_json` turns JSON text into records, lists, numbers, `true`, `false` and `nothing`, and `json` turns them back. `get` hands you text, so without this the first useful thing anyone tries ends in writing a parser.
+- The **+ library** button in the playground takes a `.rogal` file of your own and makes `use` find it. One you add wins over one that shipped, the same way a file beside your program does on a computer.
+- Apache 2.0, with a notice at the top of each source file.
+- Text is written on one line; the reference now says so, and shows `join` as the way to write a block.
+- A parse error inside a library named the file twice.
+
 ## 0.9.2
 
 - Numbers are compared the way they're shown. `0.1 + 0.2` displayed as `0.3` but wasn't equal to it, which was worse than showing the long version — the display hid the discrepancy.
@@ -66,7 +74,7 @@
 ## 0.4.0
 
 - The evaluator became internally asynchronous, at a measured cost of 1.54x. Nothing changed from the outside.
-- A kernel: `read`, `write` and `get`. Each needs a line of its own and none can be used inside an action.
+- A kernel: `read`, `write` and `get`. Each needs a line of its own and nyou can be used inside an action.
 - `rogal.js`, a command-line runner.
 - In a browser, `read` asks you to pick a file and `write` hands one back as a download.
 

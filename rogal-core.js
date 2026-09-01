@@ -1,4 +1,13 @@
-const ROGAL_VERSION = "0.9.2";
+/*
+ * Rogal — a small programming language.
+ * Copyright 2026 Marek "Lavender" Bartoszak
+ *
+ * Licensed under the Apache License, Version 2.0. You may not use this file
+ * except in compliance with the License. A copy is in LICENSE, and at
+ * http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+const ROGAL_VERSION = "0.9.3";
 
 /* ============================================================
    Rogal — core language
@@ -1695,7 +1704,9 @@ async function gatherLibraries(program, host, seen, chain) {
     let inner;
     try { inner = new Parser(tokenise(text, name + ".rogal")).parseProgram(); }
     catch (e) {
-      if (e && e.rogal) e.message = `In "${name}.rogal", line ${e.line}: ${e.message}`;
+      // The runtime path adds the file name itself, so only do it here
+      // when the token has none — a parse error inside the library.
+      if (e && e.rogal && !e.file) e.message = `In "${name}.rogal", line ${e.line}: ${e.message}`;
       throw e;
     }
     const nested = await gatherLibraries(inner, host, seen, chain.concat(name));

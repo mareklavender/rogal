@@ -1,3 +1,12 @@
+/*
+ * Rogal — a small programming language.
+ * Copyright 2026 Marek "Lavender" Bartoszak
+ *
+ * Licensed under the Apache License, Version 2.0. You may not use this file
+ * except in compliance with the License. A copy is in LICENSE, and at
+ * http://www.apache.org/licenses/LICENSE-2.0
+ */
+
 /* Fuses rogal-core.js and rogal-ui.html into a single shareable rogal.html.
    Run with:  node build.js                                                  */
 

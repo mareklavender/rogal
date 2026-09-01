@@ -1,3 +1,7 @@
+# Rogal — a small programming language.
+# Copyright 2026 Marek "Lavender" Bartoszak
+# Licensed under the Apache License, Version 2.0. See LICENSE.
+
 # dates.rogal — working with dates, written in Rogal itself.
 #
 # Dates here are text in the form "2026-08-22". Written that way they

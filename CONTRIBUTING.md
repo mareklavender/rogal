@@ -12,7 +12,9 @@ Everything you need is in this repository. There are no dependencies to install 
 | [`rogal.js`](rogal.js) | The command-line runner. |
 | [`dates.rogal`](dates.rogal) | A date library, written in Rogal itself. |
 | [`csv.rogal`](csv.rogal) | A CSV library, likewise. |
-| [`test.js`](test.js) | 176 checks. |
+| [`json.rogal`](json.rogal) | A JSON library, likewise. |
+| `LICENSE` | Apache 2.0. |
+| [`test.js`](test.js) | 194 checks. |
 | [`build.js`](build.js) | Squashes the interpreter and the page into `rogal.html`. |
 | [`make-pdf.py`](make-pdf.py) | Turns the reference into a PDF. |
 | `rogal.html` | **Generated.** Never edit it. |
@@ -40,7 +42,7 @@ python3 make-pdf.py
 It lives in one place, the top of `rogal-core.js`:
 
 ```js
-const ROGAL_VERSION = "0.9.2";
+const ROGAL_VERSION = "0.9.3";
 ```
 
 The build stamps it into the page and the PDF, so they can't drift apart. Bump it whenever the language changes, and add a line to `CHANGELOG.md` saying what happened.

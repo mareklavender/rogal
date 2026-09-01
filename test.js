@@ -1,3 +1,12 @@
+/*
+ * Rogal — a small programming language.
+ * Copyright 2026 Marek "Lavender" Bartoszak
+ *
+ * Licensed under the Apache License, Version 2.0. You may not use this file
+ * except in compliance with the License. A copy is in LICENSE, and at
+ * http://www.apache.org/licenses/LICENSE-2.0
+ */
+
 /* Checks the language still behaves as intended.
    Run with:  node test.js                                          */
 
@@ -512,6 +521,61 @@ queue.push(async () => {
   const r = await run(`use "csv"\nset rs to csv_records(join(["a,b", "1,2,3"], "\\n"))`, csvHost);
   if (r.error && r.error.message.includes("csv.rogal") && r.error.message.includes("3 values")) passed++;
   else failures.push("a ragged csv should fail, naming the library and the trouble");
+});
+
+/* ---------- the json library ---------- */
+
+const jsonHost = Object.assign({}, testHost, {
+  async library(name) {
+    const path = __dirname + "/" + name + ".rogal";
+    if (fs.existsSync(path)) return fs.readFileSync(path, "utf8");
+    const e = new Error(`no library "${name}"`); e.rogal = true; e.line = 1; e.col = 1; e.len = 1; throw e;
+  },
+});
+
+function withJson(label, source, expected) { queue.push(async () => {
+  const r = await run(`use "json"\n` + source, jsonHost);
+  if (r.error) { failures.push(`${label}\n    got error: ${r.error.message}`); return; }
+  const got = r.output.join("\n");
+  if (got !== expected.join("\n")) {
+    failures.push(`${label}\n    expected: ${JSON.stringify(expected.join("\n"))}\n    got:      ${JSON.stringify(got)}`);
+    return;
+  }
+  passed++;
+}); }
+
+withJson("a number", `show parse_json("42")`, ["42"]);
+withJson("some text", `show parse_json("\\"hello\\"")`, ["hello"]);
+withJson("true, false and null",
+  `show parse_json("true"), parse_json("false"), parse_json("null")`, ["true false nothing"]);
+withJson("a list", `show parse_json("[1, 2, 3]")`, ["[1, 2, 3]"]);
+withJson("an empty list", `show count(parse_json("[]"))`, ["0"]);
+withJson("a record", `set p to parse_json("{\\"a\\": 1}")\nshow p.a`, ["1"]);
+withJson("nested",
+  `set p to parse_json("{\\"x\\": {\\"y\\": [1, 2]}}")\nshow p.x.y[2]`, ["2"]);
+withJson("whitespace is ignored",
+  `show parse_json(join(["{", "  \\"a\\" : 1", "}"], "\\n")).a`, ["1"]);
+withJson("a decimal", `show parse_json("[1.5, -2.25]")`, ["[1.5, -2.25]"]);
+withJson("escapes in text",
+  `show count(parse_json("\\"a\\\\nb\\""))`, ["3"]);
+
+withJson("writing a number", `show json(42)`, ["42"]);
+withJson("writing text", `show json("hi")`, ['"hi"']);
+withJson("writing true and nothing", `show json(true), json(nothing)`, ["true null"]);
+withJson("writing a list", `show json([1, 2])`, ["[1,2]"]);
+withJson("writing a record", `show json({a: 1})`, ['{"a":1}']);
+withJson("there and back",
+  `set p to parse_json("{\\"n\\": [1, 2], \\"t\\": \\"x\\"}")\nshow json(p)`, ['{"n":[1,2],"t":"x"}']);
+
+queue.push(async () => {
+  const r = await run(`use "json"\nshow parse_json("{oops}")`, jsonHost);
+  if (r.error && r.error.message.includes("json.rogal")) passed++;
+  else failures.push("bad json should fail, naming the library");
+});
+queue.push(async () => {
+  const r = await run(`use "json"\nshow parse_json("[1, 2")`, jsonHost);
+  if (r.error && r.error.message.includes("never closed")) passed++;
+  else failures.push("an unclosed list should say so");
 });
 
 /* ---------- report ---------- */
