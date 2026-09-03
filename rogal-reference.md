@@ -308,7 +308,7 @@ show round(sum(prices) / count(prices))
 # / divides them, round makes it whole
 ```
 
-Nest as deeply as you like. There is no limit and no special syntax for it.
+Nest as deeply as you like. Blocks have no limit and no special syntax. (An action calling *itself* does have one — 300 times, so a mistake stops rather than freezing.)
 
 **What doesn't combine:** a statement can never go inside an expression. These are all wrong:
 
@@ -1118,8 +1118,8 @@ Six of these (`more`, `less`, `than`, `at`, `most`, `least`) only ever appear as
 
 The edges, so nothing catches you out:
 
-- **No error handling.** There's no `try` or `catch`. An error stops the program.
-- **No dates built in.** `now()` tells you the moment and the `dates` library does the arithmetic, but neither is part of the language itself.
+- **No `try` or `catch`.** An error stops the program. You can stop one yourself with `fail "..."` when the input is wrong, but you can't catch an error and carry on.
+- **Dates are text, not their own kind of value.** `now()` gives you the moment, and the `dates` library counts days and names weekdays. Written as `2026-09-03` they sort and compare correctly on their own.
 - **No classes.** Records hold values, not actions on those values. That may stay as it is.
 - **Nothing runs in the background.** No timing, no waiting, no doing two things at once.
 
