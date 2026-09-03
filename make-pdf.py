@@ -213,8 +213,8 @@ page = f"""<!DOCTYPE html>
   <p class="tp-eyebrow">Language reference · version {version}</p>
   <h1 class="tp-name" style="display:block">Rogal</h1>
   <hr class="tp-rule">
-  <p class="tp-stand">Thirty-two words, one way to write each thing, and a mistake tells you
-  <em>what to do about it</em> instead of what went wrong inside the machine.</p>
+  <p class="tp-stand">A small language that's easy to write, where every error
+  <em>points at the problem and explains it</em>.</p>
   <p class="tp-stand" style="font-size:10.5pt;color:#4a4459">Everything the language has is in here:
   all 32 words and all 32 actions, with a list of the lot at the end.</p>
   <div class="tp-meta">

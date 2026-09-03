@@ -1,6 +1,6 @@
 # Rogal — Language Reference
 
-**Version 0.9.3** · Complete. Every word the language has is in this document.
+**Version 0.9.4** · Complete. Every word the language has is in this document.
 
 Rogal has 32 words and 32 actions — 27 built in, and 5 that reach outside the program. That's the whole language: nothing to install and nothing to import.
 
@@ -1064,7 +1064,7 @@ One rule covers both: **a name means one thing inside any single action, and one
 
 ## 19. Errors
 
-Every error names the line, underlines the exact word, says what went wrong in a sentence, and where possible says what to do about it:
+Every error names the line, underlines the exact word and says what went wrong in a sentence. Most go further and suggest what to do next; a few, where the fix is unambiguous, offer it as a button:
 
 ```
 Line 10

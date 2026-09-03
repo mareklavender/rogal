@@ -14,7 +14,7 @@ Everything you need is in this repository. There are no dependencies to install 
 | [`csv.rogal`](csv.rogal) | A CSV library, likewise. |
 | [`json.rogal`](json.rogal) | A JSON library, likewise. |
 | `LICENSE` | Apache 2.0. |
-| [`test.js`](test.js) | 194 checks. |
+| [`test.js`](test.js) | 219 checks. |
 | [`build.js`](build.js) | Squashes the interpreter and the page into `rogal.html`. |
 | [`make-pdf.py`](make-pdf.py) | Turns the reference into a PDF. |
 | `rogal.html` | **Generated.** Never edit it. |
@@ -42,7 +42,7 @@ python3 make-pdf.py
 It lives in one place, the top of `rogal-core.js`:
 
 ```js
-const ROGAL_VERSION = "0.9.3";
+const ROGAL_VERSION = "0.9.4";
 ```
 
 The build stamps it into the page and the PDF, so they can't drift apart. Bump it whenever the language changes, and add a line to `CHANGELOG.md` saying what happened.
@@ -54,6 +54,14 @@ The core is for what you can't write cleanly in Rogal itself.
 `read` can't be written in Rogal — nothing else reaches a file. `fail` can't — no action can stop a program. `parse_csv` can, and does, in `csv.rogal`. So can `starts(line, prefix)`, in four lines on top of `slice`.
 
 The test for any new built-in: **try writing it in Rogal first.** If it comes out clean, it belongs in a library. If it's impossible or grotesque, it belongs in the core. That's what keeps 32 actions from becoming 200.
+
+## Words from other languages
+
+Someone arriving from Python or JavaScript reaches for a habit, not a typo. `print`, `return`, `elif`, `null` — the error should teach the Rogal way rather than suggesting they make a variable called `print`.
+
+The table is `FROM_ELSEWHERE` in `rogal-core.js`, wired into three separate error paths, and `test.js` checks a sample. Add to both when a new one turns up.
+
+Worth re-reading it when a feature lands: if error handling ever arrives, `try` and `catch` stop being "Rogal doesn't have this" and need different entries rather than new ones.
 
 ## Security, every release
 

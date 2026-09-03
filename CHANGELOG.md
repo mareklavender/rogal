@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.4
+
+- The **+ library** button in the playground never worked. It was added in 0.9.3 with the button, the file picker and the storage all in place, but nothing joining them. Wired up, with the same rule as on a computer: a library name is letters, digits, `-` and `_`, never a path.
+- Words from other languages now teach instead of confusing. `print` said "create it first with: set print to ..."; it now says to use `show`. Around fifty of them, covering Python, JavaScript, Ruby and shell habits: `len`, `return`, `function`, `var`, `null`, `append`, `str`, `input`, `range`, `import`, `elif`, `then`, `class`, `break`, `try` and the rest.
+- `is equal`, `is equal to` and `is equals` say that `is` is the whole comparison.
+- A genuine typo still gets the "did you mean" suggestion, so the two don't get in each other's way.
+
 ## 0.9.3
 
 - A `json` library, written in Rogal: `parse_json` turns JSON text into records, lists, numbers, `true`, `false` and `nothing`, and `json` turns them back. `get` hands you text, so without this the first useful thing anyone tries ends in writing a parser.

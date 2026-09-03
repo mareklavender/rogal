@@ -7,7 +7,7 @@
  * http://www.apache.org/licenses/LICENSE-2.0
  */
 
-const ROGAL_VERSION = "0.9.3";
+const ROGAL_VERSION = "0.9.4";
 
 /* ============================================================
    Rogal — core language
@@ -140,6 +140,11 @@ class Parser {
   endOfStatement() {
     if (this.peek().type === "newline" || this.peek().type === "end-of-file") return;
     const t = this.peek();
+    const started = this.lineStart && this.lineStart.type === "name"
+      ? (FROM_ELSEWHERE[this.lineStart.text] || FROM_ELSEWHERE[this.lineStart.text.toLowerCase()])
+      : null;
+    if (started)
+      throw new RogalError(`"${this.lineStart.text}" isn't a word Rogal knows.`, this.lineStart, { hint: started });
     throw new RogalError(`I didn't expect ${describeToken(t)} here.`, t,
       { hint: "Each instruction goes on its own line." });
   }
@@ -186,6 +191,7 @@ class Parser {
   }
 
   parseStatement() {
+    this.lineStart = this.peek();
     const t = this.peek();
 
     if (t.type === "keyword") {
@@ -220,8 +226,9 @@ class Parser {
     const expr = this.parseExpression();
     this.endOfStatement();
     if (expr.kind === "call") { expr.wholeStatement = true; return { kind: "expression-statement", expr, tok: t }; }
+    const opener = t.type === "name" ? (FROM_ELSEWHERE[t.text] || FROM_ELSEWHERE[t.text.toLowerCase()]) : null;
     throw new RogalError(`This line doesn't do anything.`, t,
-      { hint: `Did you mean to start it with "show", "set" or "change"?` });
+      { hint: opener || `Did you mean to start it with "show", "set" or "change"?` });
   }
 
   sourceAfterEquals() {
@@ -426,7 +433,17 @@ class Parser {
         if (this.is("least")) { this.next(); kind = "at least"; }
         else if (this.is("most")) { this.next(); kind = "at most"; }
         else throw new RogalError(`After "is at" I expect "least" or "most".`, this.peek());
-      } else kind = "is";
+      } else {
+        // "is equal to" and "is equals" are habits from elsewhere; "is" is the whole thing
+        const next = this.peek();
+        if (next.type === "name" && ["equal", "equals", "the"].includes(next.text.toLowerCase()))
+          throw new RogalError(`"is" is the whole comparison, so "${next.text}" isn't needed.`, next,
+            { hint: `Write it as: if a is 1`,
+              fix: { line: next.line, col: next.col,
+                     len: next.text.length + (this.toks[this.pos+1] && this.toks[this.pos+1].text === "to" ? 3 : 0),
+                     replacement: "" } });
+        kind = "is";
+      }
       left = { kind: "compare", op: kind, left, right: this.parseSum(), tok: op };
     }
     if (this.is("<") || this.is(">") || this.is("==") || this.is(">=") || this.is("<=")) {
@@ -604,6 +621,96 @@ function compareNumbers(a, b) {
   const x = Math.round(a * 1e10), y = Math.round(b * 1e10);
   return x < y ? -1 : x > y ? 1 : 0;
 }
+
+// Words people arrive with from other languages. Meeting one is not a typo,
+// it is someone reaching for a habit, so the error teaches the Rogal way
+// rather than suggesting they make a variable called "print".
+const FROM_ELSEWHERE = {
+  print: `Use "show" to display something: show "hello"`,
+  console: `Use "show" to display something: show "hello"`,
+  echo: `Use "show" to display something: show "hello"`,
+  puts: `Use "show" to display something: show "hello"`,
+  printf: `Use "show" to display something: show "hello"`,
+
+  len: `Use "count" instead: count([1, 2, 3])`,
+  length: `Use "count" instead: count("hello")`,
+  size: `Use "count" instead: count(list)`,
+
+  append: `Use "add" instead: add(list, item). It gives back a new list.`,
+  push: `Use "add" instead: add(list, item). It gives back a new list.`,
+  pop: `Use "remove" instead: remove(list, position). It gives back a new list.`,
+
+  str: `Use "text" instead: text(42)`,
+  string: `Use "text" instead: text(42)`,
+  tostring: `Use "text" instead: text(42)`,
+  int: `Use "number" instead: number("42")`,
+  float: `Use "number" instead: number("4.2")`,
+  parseint: `Use "number" instead: number("42")`,
+  parsefloat: `Use "number" instead: number("4.2")`,
+
+  input: `Use "ask" instead: ask("What is your name?")`,
+  prompt: `Use "ask" instead: ask("What is your name?")`,
+  readline: `Use "read" for a file, or "ask" for a question.`,
+
+  null: `Rogal writes this as "nothing".`,
+  none: `Rogal writes this as "nothing".`,
+  nil: `Rogal writes this as "nothing".`,
+  undefined: `Rogal writes this as "nothing".`,
+  NULL: `Rogal writes this as "nothing".`,
+  None: `Rogal writes this as "nothing".`,
+
+  equal: `Comparisons use "is" on its own: if a is 1`,
+  return: `Use "give" to hand a value back from an action: give n * 2`,
+  function: `Use "make" to create an action: make double(n)`,
+  func: `Use "make" to create an action: make double(n)`,
+  def: `Use "make" to create an action: make double(n)`,
+  fn: `Use "make" to create an action: make double(n)`,
+  lambda: `Rogal has no anonymous actions. Give it a name with "make".`,
+  var: `Use "set" to create a name: set total to 0`,
+  let: `Use "set" to create a name: set total to 0`,
+  const: `Use "set" to create a name. Everything in Rogal copies, so nothing changes behind your back.`,
+  elif: `Rogal writes this as "else if", on its own line.`,
+  elsif: `Rogal writes this as "else if", on its own line.`,
+  elseif: `Rogal writes this as "else if", on its own line.`,
+  then: `Rogal needs no "then". The block starts on the next line and closes with "end".`,
+  endif: `Every block closes with just "end".`,
+  endfor: `Every block closes with just "end".`,
+  endwhile: `Every block closes with just "end".`,
+  fi: `Every block closes with just "end".`,
+  done: `Every block closes with just "end".`,
+  foreach: `Rogal writes this as two words: for each item in list`,
+  import: `Use "use" to bring in another file: use "dates"`,
+  require: `Use "use" to bring in another file: use "dates"`,
+  include: `Use "use" to bring in another file: use "dates"`,
+  raise: `Use "fail" to stop with a message: fail "the file is the wrong shape"`,
+  throw: `Use "fail" to stop with a message: fail "the file is the wrong shape"`,
+  try: `Rogal has no error handling yet. An error stops the program.`,
+  catch: `Rogal has no error handling yet. An error stops the program.`,
+  except: `Rogal has no error handling yet. An error stops the program.`,
+  finally: `Rogal has no error handling yet. An error stops the program.`,
+  class: `Rogal has no classes. Records hold values; actions do the work.`,
+  new: `Rogal has no classes. A record is written directly: {name: "Ada"}`,
+  self: `Rogal has no classes, so there is no "self".`,
+  this: `Rogal has no classes, so there is no "this".`,
+  break: `Use "stop" to leave a loop early.`,
+  continue: `Rogal has no "continue". Put the rest of the loop inside an "if" instead.`,
+  equals: `Comparisons use "is" on its own: if a is 1`,
+  eq: `Comparisons use "is" on its own: if a is 1`,
+
+  abs: `There is no "abs". Compare with 0 and subtract the other way round.`,
+  min: `There is no "min". Use sort_up(list) and take first(...).`,
+  max: `There is no "max". Use sort_down(list) and take first(...).`,
+  map: `Rogal has no "map". Use "for each" and build a new list with "add".`,
+  filter: `Rogal has no "filter". Use "for each" with an "if" inside.`,
+  range: `Use "numbers" instead: numbers(1, 10)`,
+  substring: `Use "slice" instead: slice("hello", 2, 4)`,
+  substr: `Use "slice" instead: slice("hello", 2, 4)`,
+  indexof: `Use "find" instead: find("hello", "ell")`,
+  contains: `Use "has" instead: has("hello", "ell")`,
+  includes: `Use "has" instead: has("hello", "ell")`,
+  startswith: `There is no "startswith". Compare a slice: slice(line, 1, 5) is "hello"`,
+  endswith: `There is no "endswith". Compare a slice from the end using count(line).`,
+};
 
 function isRecord(v) { return v !== null && typeof v === "object" && v.__record === true; }
 function makeRecord(map) { return { __record: true, fields: map }; }
@@ -813,16 +920,34 @@ class Interpreter {
     this.depth = 0;
     this.cameFrom = new Map();   // name -> the action that produced its value
     this.inside = [];            // one entry per action being run: does it reach out?
+    this.touchedOutside = false; // has it read, written, fetched or asked?
+    this.showedSomething = false;
+    // A browser tab must never hang, so the allowance there is small. On a
+    // computer you started the program yourself and can wait.
+    this.stepLimit = 4000000;
+    this.timeLimit = 5000;
   }
 
   tick(tok) {
     this.steps++;
-    if (this.steps > 4000000)
-      throw new RogalError("This program was still running after four million steps, so I stopped it.", tok,
-        { hint: "A loop is probably never reaching its stopping point. Check that its test can become false." });
-    if ((this.steps & 1023) === 0 && Date.now() - this.started > 5000)
-      throw new RogalError("This program ran for more than five seconds, so I stopped it.", tok,
-        { hint: "A loop is probably never reaching its stopping point. Check that its test can become false." });
+    if (this.steps > this.stepLimit) {
+      // A program that has shown something, or read a file, was doing work
+      // rather than spinning. Say so, instead of blaming a loop.
+      const wasWorking = this.showedSomething || this.touchedOutside;
+      throw new RogalError(
+        `This program was still going after ${fmtNumber(this.stepLimit)} steps, so I stopped it.`, tok,
+        { hint: wasWorking
+            ? `It was still doing something when it ran out. If the work really is this large, run it with Node, where the allowance is much bigger.`
+            : `A loop is probably never reaching its stopping point. Check that its test can become false.` });
+    }
+    if ((this.steps & 1023) === 0 && Date.now() - this.started > this.timeLimit) {
+      const wasWorking = this.showedSomething || this.touchedOutside;
+      throw new RogalError(
+        `This program ran for more than ${Math.round(this.timeLimit / 1000)} seconds, so I stopped it.`, tok,
+        { hint: wasWorking
+            ? `It was still doing something when time ran out. If the work really is this large, run it with Node, where the allowance is much bigger.`
+            : `A loop is probably never reaching its stopping point. Check that its test can become false.` });
+    }
   }
 
   async run(program) { this.program = program; await this.execBlock(program, this.globals); }
@@ -859,6 +984,7 @@ class Interpreter {
       }
       case "change": return await this.execChange(node, scope);
       case "show": {
+        this.showedSomething = true;
         const shown = await Promise.all(node.parts.map(p => this.eval(p, scope)));
         this.onShow(shown.map(toDisplay).join(" "));
         return;
@@ -1038,13 +1164,15 @@ class Interpreter {
     }
 
     const guess = suggestName(name, scope);
+    const elsewhere = FROM_ELSEWHERE[name] || FROM_ELSEWHERE[name.toLowerCase()];
     throw new RogalError(
       changing ? `There's nothing called "${name}" to change.` : `I don't know what "${name}" is.`,
       tok,
       {
-        hint: guess ? `There is something called "${guess}". Did you mean that?`
+        hint: elsewhere ? elsewhere
+            : guess ? `There is something called "${guess}". Did you mean that?`
                     : `Create it first with: set ${name} to ...`,
-        fix: guess ? { line: tok.line, col: tok.col, len: name.length, replacement: guess } : null
+        fix: guess && !elsewhere ? { line: tok.line, col: tok.col, len: name.length, replacement: guess } : null
       });
   }
 
@@ -1254,6 +1382,7 @@ class Interpreter {
 
   async callValue(callee, args, node) {
     if (isAction(callee)) {
+      if (callee.effect) this.touchedOutside = true;
       const here = this.inside.length ? this.inside[this.inside.length - 1] : null;
 
       if (callee.effect && here !== null && here === false)
@@ -1738,7 +1867,13 @@ async function run(source, host) {
         { __action: true, name: node.name, params: node.params, body: node.body });
     }
 
-    if (host) installKernel(interp.builtins, host);
+    if (host) {
+      installKernel(interp.builtins, host);
+      // A browser tab must never hang, so its allowance is small. On a
+      // computer you started the program yourself and can afford to wait.
+      if (host.generous) { interp.stepLimit = 400000000; interp.timeLimit = 120000; }
+      interp.noteReach = () => { interp.touchedOutside = true; };
+    }
     else installAbsentKernel(interp.builtins,
       "Rogal is running somewhere with no files and no network. Run it on your computer, or in the playground use the version that can ask you for a file.");
     await interp.run(program);

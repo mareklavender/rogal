@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /*
  * Rogal — a small programming language.
  * Copyright 2026 Marek "Lavender" Bartoszak
@@ -7,7 +8,6 @@
  * http://www.apache.org/licenses/LICENSE-2.0
  */
 
-#!/usr/bin/env node
 /* Runs a Rogal program from the command line, with files and the network.
    Usage:  node rogal.js script.rogal                                     */
 
@@ -37,6 +37,9 @@ const near = name => path.resolve(path.dirname(path.resolve(file)), name);
 // Anything the host throws is turned into a sentence; the interpreter
 // wraps it with the line and the caret.
 const host = {
+  // On a computer you chose to run this, so it may take its time.
+  generous: true,
+
   async library(name, node) {
     const beside = near(name + ".rogal");
     const shipped = path.join(__dirname, name + ".rogal");

@@ -578,6 +578,87 @@ queue.push(async () => {
   else failures.push("an unclosed list should say so");
 });
 
+/* ---------- words people arrive with ----------
+   Someone coming from Python or JavaScript reaches for a habit, not a typo.
+   These check the error teaches the Rogal way instead of suggesting they
+   make a variable called "print".                                          */
+
+fails("print", `print "hi"`, `Use "show"`);
+fails("len", `show len([1,2,3])`, `Use "count"`);
+fails("return", `make f()\n  return 1\nend`, `Use "give"`);
+fails("function", `function f()\n  give 1\nend`, `Use "make"`);
+fails("var", `var a = 1`, `Use "set"`);
+fails("null", `set a to null`, `writes this as "nothing"`);
+fails("append", `show append([1], 2)`, `Use "add"`);
+fails("str", `show str(1)`, `Use "text"`);
+fails("input", `set a to input("x")`, `Use "ask"`);
+fails("range", `show range(1, 5)`, `Use "numbers"`);
+fails("import", `import "dates"`, `Use "use"`);
+fails("elif", `if false\n  show 1\nelif true\n  show 2\nend`, `"else if"`);
+fails("then", `if true then\n  show 1\nend`, `needs no "then"`);
+fails("class", `class Dog\nend`, `no classes`);
+fails("break", `repeat 2 times\n  break\nend`, `Use "stop"`);
+fails("try", `try\n  show 1\nend`, `no error handling`);
+fails("contains", `show contains("ab", "a")`, `Use "has"`);
+fails("is equal", `set a to 1\nif a is equal 1\n  show a\nend`, `is the whole comparison`);
+fails("is equal to", `set a to 1\nif a is equal to 1\n  show a\nend`, `is the whole comparison`);
+
+// and a real typo still gets the suggestion, not a lecture
+fails("a genuine typo still suggests the name", `set total to 1\nshow totl`, `Did you mean`);
+
+/* ---------- the command-line runner ----------
+   A shebang only works on the first line. A licence header pushed it down
+   in 0.9.3 and broke the runner completely, which no test noticed.        */
+
+queue.push(async () => {
+  const runner = fs.readFileSync(__dirname + "/rogal.js", "utf8");
+  if (runner.startsWith("#!")) passed++;
+  else failures.push("rogal.js must begin with its shebang, or Node won't run it");
+});
+
+queue.push(async () => {
+  // With no file it prints help and exits 1, which is right for a tool,
+  // so catch that rather than treating the exit code as a failure.
+  const { spawnSync } = require("child_process");
+  const got = spawnSync("node", [__dirname + "/rogal.js"], { encoding: "utf8" });
+  if (String(got.stdout).includes("Rogal v")) passed++;
+  else failures.push("rogal.js should print its help when given no file, got: "
+                     + String(got.stderr || got.stdout).slice(0, 80));
+});
+
+/* ---------- limits ---------- */
+
+queue.push(async () => {
+  const r = await run(`set i to 0\nwhile true\n  change i to i + 1\nend`);
+  if (r.error && /never reaching its stopping point/.test(r.error.hint)) passed++;
+  else failures.push("a runaway loop should blame the loop");
+});
+
+queue.push(async () => {
+  const r = await run(`show "working"\nset i to 0\nwhile true\n  change i to i + 1\nend`);
+  if (r.error && /still doing something/.test(r.error.hint)) passed++;
+  else failures.push("a program that was working should not be blamed for a stuck loop");
+});
+
+queue.push(async () => {
+  const generous = Object.assign({}, testHost, { generous: true });
+  const r = await run(`show 1`, generous);
+  if (!r.error) passed++;
+  else failures.push("the generous host should still run an ordinary program");
+});
+
+/* ---------- the playground's own start-up ----------
+   The editor remembers each chip, which meant the very first load parked an
+   empty editor under chip 0 and then restored it. The page opened blank.   */
+
+queue.push(async () => {
+  const page = fs.readFileSync(__dirname + "/rogal.html", "utf8");
+  const startsEmpty = /let showing = 0;/.test(page);
+  const guarded = /if \(showing === null\) return;/.test(page);
+  if (!startsEmpty && guarded) passed++;
+  else failures.push("the page must not park an empty editor before its first load");
+});
+
 /* ---------- report ---------- */
 
 (async () => {
