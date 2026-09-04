@@ -42,7 +42,7 @@ python3 make-pdf.py
 It lives in one place, the top of `rogal-core.js`:
 
 ```js
-const ROGAL_VERSION = "0.9.4";
+const ROGAL_VERSION = "0.9.5";
 ```
 
 The build stamps it into the page and the PDF, so they can't drift apart. Bump it whenever the language changes, and add a line to `CHANGELOG.md` saying what happened.
@@ -73,6 +73,12 @@ A short list, because the surface is small:
 - **Is anything new reachable from inside an ordinary action?** The kernel is sealed off on purpose, and `reach` is the only door. A new action that quietly isn't sealed would undo it.
 - **What can a shared file do?** Someone downloads a `.rogal` file and runs it. Today that's `read` plus `get`, which is the same exposure as any scripting language — but it should stay a considered position rather than an accident.
 
+## Read it as someone arriving cold
+
+Every sentence can be true and the document still not work, because things get added in the order they were thought of rather than the order someone needs them. The README told people to download a file, then mentioned two sections later that a link was better — both true, wrong way round. That happened because the hosting advice was written when nothing was hosted, and nobody moved it afterwards.
+
+So once a release is otherwise done, read the README top to bottom and ask whether the first thing someone needs is the first thing they find. Check the reference's cross-references still land where they say, since section numbers shift when one is added.
+
 ## What to check before a release
 
 - `node test.js` passes.
@@ -80,6 +86,7 @@ A short list, because the surface is small:
 - Every code block in the reference still runs. They're real programs, so they can be tested — and they have caught stale syntax more than once.
 - The counts in the documentation match the interpreter. Recount rather than carrying the old number forward; that's how "30 actions" survived four versions when the answer was 32.
 - Read the prose back cold. Not for accuracy — for anything that needs a second read.
+- Check any claim that Rogal *lacks* something. Two of the four in "what it doesn't have yet" were wrong: it said there were no dates when `now()` is one of the 32 actions, and no error handling without mentioning `fail`. A wrong absence puts people off for no reason.
 
 ## How the language is built
 

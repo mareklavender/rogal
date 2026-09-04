@@ -21,39 +21,27 @@ Average: 17.5
 
 Small enough to hold in your head, and solid enough to write real scripts in. That makes it a good first language, and a reasonable one to stay with.
 
-**Status:** working prototype, v0.9.4. Licensed under Apache 2.0.
+**Status:** working prototype, v0.9.5. Licensed under Apache 2.0.
 
 ---
 
 ## Trying it
 
-**You need one file: `rogal.html`.** Open it in a browser and that's the whole language — examples, a reference panel, and somewhere to write. Nothing to install.
+Go to **[rogallang.netlify.app](https://rogallang.netlify.app)**. Nothing to install — the whole language is in the page, with examples, a reference panel and somewhere to write.
 
-Better still, put it on the web and send a link. See *Sharing it* below.
+To keep a copy, download [`rogal.html`](rogal.html) and open it in a browser on a computer. On a phone, use the link: phone browsers often block JavaScript in a local page, so the downloaded file opens with nothing working. To host your own copy, [Netlify Drop](https://app.netlify.com/drop) takes a drag and no account.
 
-## Running programs against real files
+## Working with files on your computer
 
-The browser version can read a file you pick and hand one back as a download. For a program that opens files by name, you'll need [Node.js](https://nodejs.org) installed, with `rogal-core.js` and `rogal.js` in a folder together:
+In a browser, `read` asks you to pick a file and `write` hands one back as a download.
+
+For a program that opens files by name, you'll need [Node.js](https://nodejs.org). Put `rogal-core.js` and `rogal.js` in a folder together and run:
 
 ```
 node rogal.js myscript.rogal
 ```
 
-Files are read and written next to the script, not next to wherever your terminal happens to be.
-
-## Sharing it
-
-Send a **link**, not the file. iOS won't run JavaScript in local HTML, so anyone opening `rogal.html` from Files, Mail or a cloud drive on an iPhone gets a dead page — no examples, no Run button.
-
-**Cloud storage doesn't help.** Dropbox, iCloud, Google Drive and Proton Drive all show you a preview rather than serving the page, so JavaScript stays blocked and you get the same dead page. It needs real hosting.
-
-Any of these give you a URL in a minute or two:
-
-- [Netlify Drop](https://app.netlify.com/drop) — drag the file on, no account needed
-- Cloudflare Pages
-- GitHub Pages — free, but only from a public repository
-
-On an iPhone with no hosting, **Documents by Readdle** has a proper browser inside it and will run the file from local storage.
+Files are read and written next to your program, not next to wherever your terminal happens to be.
 
 ## Libraries
 

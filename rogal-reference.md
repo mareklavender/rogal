@@ -1,6 +1,6 @@
 # Rogal — Language Reference
 
-**Version 0.9.4** · Complete. Every word the language has is in this document.
+**Version 0.9.5** · Complete. Every word the language has is in this document.
 
 Rogal has 32 words and 32 actions — 27 built in, and 5 that reach outside the program. That's the whole language: nothing to install and nothing to import.
 
@@ -12,7 +12,7 @@ Two ways, depending on what you're doing.
 
 ### In a browser
 
-Open `rogal.html`. Nothing to install, and the examples and a short reference are built into the page.
+Open `rogal.html`, or go to [rogallang.netlify.app](https://rogallang.netlify.app). Nothing to install, and the examples and a short reference are built into the page. On a computer either works; on a phone, use the link.
 
 Write a program and press **Run**, or Ctrl + Enter. **Save** downloads it as a `.rogal` file, using whatever name is in the box beside the button; **Open** loads one back in. The **blank** chip clears the editor to start from nothing. If you'd lose unsaved work, you're asked first.
 
@@ -952,7 +952,7 @@ Every action you write is then free of surprises: same inputs, same result, no f
 
 ### What these five do in a browser
 
-A web page has no file system, so `read` **asks you to pick a file** and `write` **hands one back as a download**. `ask` is a prompt box. The program is the same either way — you just pick the file instead of naming it. `get` works, but only for sites that permit it — a limit of web pages, not of Rogal.
+A web page has no file system, so `read` **asks you to pick a file** and `write` **hands one back as a download**. `ask` puts its question at the bottom of the output and waits there for a reply. The program is the same either way — you just pick the file instead of naming it. `get` works, but only for sites that permit it — a limit of web pages, not of Rogal.
 
 If a file isn't chosen, or a site refuses, you get an ordinary Rogal error explaining which.
 

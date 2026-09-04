@@ -120,6 +120,21 @@
   .run:hover{background:#3B2B7A}
   .run:disabled{background:var(--ditto-soft);cursor:default}
   .kbd{font-family:var(--mono);font-size:11px;color:var(--ditto-soft)}
+  .asking{margin:10px 0 4px;padding:12px 14px;background:#fff;border:1px solid var(--ditto-soft);border-radius:3px}
+  .asking.asked{opacity:.72;border-color:var(--rule)}
+  .asking-q{margin:0 0 9px;font-family:var(--serif);font-size:15.5px;color:var(--ink)}
+  .asking-row{display:flex;gap:7px;flex-wrap:wrap}
+  .asking-field{
+    flex:1;min-width:9rem;font-family:var(--mono);font-size:14px;color:var(--ink);
+    background:var(--paper);border:1px solid var(--rule);border-radius:2px;padding:8px 10px;
+  }
+  .asking-field:focus{outline:2px solid var(--ditto);outline-offset:1px}
+  .asking-send,.asking-skip{
+    font-family:var(--mono);font-size:12.5px;padding:8px 13px;border-radius:2px;cursor:pointer;
+  }
+  .asking-send{background:var(--ditto);color:#fff;border:1px solid var(--ditto)}
+  .asking-skip{background:#fff;color:var(--ditto);border:1px solid var(--rule)}
+  .asking-said{margin:9px 0 0;font-family:var(--mono);font-size:13.5px;color:var(--ditto)}
   .spacer{flex:1}
   .filename{display:inline-flex;align-items:center}
   .filename input{
@@ -204,7 +219,7 @@
 <div class="wrap">
 
   <header class="masthead">
-    <p class="eyebrow">Version 0.9.4 · runs entirely in this page</p>
+    <p class="eyebrow">Version 0.9.5 · runs entirely in this page</p>
     <h1 class="wordmark">Ro<span class="gee">g</span>al</h1>
     <p class="standfirst">A small language that's easy to write, where every error <em>points at the problem and explains it</em>. Thirty-two words, one way to write each thing.</p>
   </header>
@@ -323,7 +338,7 @@
  * http://www.apache.org/licenses/LICENSE-2.0
  */
 
-const ROGAL_VERSION = "0.9.4";
+const ROGAL_VERSION = "0.9.5";
 
 /* ============================================================
    Rogal — core language
@@ -2286,10 +2301,13 @@ const browserHost = {
   },
 
   async ask(question, node) {
-    const answer = window.prompt(question);
+    // Not window.prompt: mobile browsers suppress it when the call doesn't
+    // come straight from a tap, and a running program never does. So the
+    // question goes in the page, where it always appears.
+    const answer = await askInPage(question);
     if (answer === null)
       throw plainly(`Nothing was answered.`, node,
-        `"ask" waits for a reply. In this page that's a prompt box, and it was closed without one.`);
+        `"ask" waits for a reply, and the question was dismissed without one.`);
     return answer;
   },
 
@@ -2566,6 +2584,19 @@ show "Still going: " + person.active
 show ""
 show json({item: "figs", price: 0.75, sold: 340})`},
 
+  { name:"asking", code:
+`# ask puts a question in the output below and waits.
+# Keep the answer in a name, or it is thrown away.
+
+set name to ask("What is your name?")
+show "Hello, " + name
+
+set age to ask("How old are you?")
+
+# ask always gives text, even when you type digits,
+# so number() is needed before doing sums with it.
+show name + " will be " + (number(age) + 1) + " next year"`},
+
   { name:"a mistake", broken:true, code:
 `set total to 0
 set prices to [10, 20, 30]
@@ -2754,6 +2785,59 @@ function refresh(flagLine) {
   gutterEl.innerHTML = g;
   const chars = codeEl.value.length;
   countEl.textContent = lines + (lines === 1 ? " line" : " lines") + " · " + chars + " characters";
+}
+
+// Puts the question at the bottom of the output and waits there for a reply.
+function askInPage(question) {
+  return new Promise(resolve => {
+    let inner = outEl.querySelector(".out-inner");
+    if (!inner) { outEl.innerHTML = '<div class="out-inner"></div>'; inner = outEl.querySelector(".out-inner"); }
+
+    const box = document.createElement("div");
+    box.className = "asking";
+    const label = document.createElement("p");
+    label.className = "asking-q";
+    label.textContent = question;
+    const row = document.createElement("div");
+    row.className = "asking-row";
+    const field = document.createElement("input");
+    field.type = "text";
+    field.className = "asking-field";
+    field.setAttribute("aria-label", question);
+    const send = document.createElement("button");
+    send.className = "asking-send";
+    send.textContent = "Answer";
+    const skip = document.createElement("button");
+    skip.className = "asking-skip";
+    skip.textContent = "Stop";
+    row.append(field, send, skip);
+    box.append(label, row);
+    inner.appendChild(box);
+    outEl.scrollTop = outEl.scrollHeight;
+    field.focus();
+
+    let done = false;
+    const finish = value => {
+      if (done) return;
+      done = true;
+      field.disabled = send.disabled = skip.disabled = true;
+      box.classList.add("asked");
+      if (value !== null) {
+        const said = document.createElement("p");
+        said.className = "asking-said";
+        said.textContent = value === "" ? "(nothing typed)" : value;
+        box.appendChild(said);
+      }
+      resolve(value);
+    };
+
+    send.addEventListener("click", () => finish(field.value));
+    skip.addEventListener("click", () => finish(null));
+    field.addEventListener("keydown", e => {
+      if (e.key === "Enter") { e.preventDefault(); finish(field.value); }
+      if (e.key === "Escape") { e.preventDefault(); finish(null); }
+    });
+  });
 }
 
 function escapeHtml(s) {

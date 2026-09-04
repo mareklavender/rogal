@@ -7,7 +7,7 @@
  * http://www.apache.org/licenses/LICENSE-2.0
  */
 
-const ROGAL_VERSION = "0.9.4";
+const ROGAL_VERSION = "0.9.5";
 
 /* ============================================================
    Rogal — core language

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.5
+
+- `ask` no longer uses the browser's prompt box, which mobile browsers suppress when the call doesn't come straight from a tap — so on a phone the question never appeared and the program stopped saying nothing was answered. The question now goes at the bottom of the output, with a field and a button, and works the same everywhere.
+- An **asking** example in the playground.
+- The README is reordered. It told you to download a file, then mentioned two sections later that a link was better — both true, wrong way round. "Trying it" now leads with the link, and "Sharing it" is gone since it was really about trying it.
+- The README no longer suggests Documents by Readdle for iPhones. It was the workaround before there was a hosted page, and it blocks downloads, so `write` looks as though it has failed when it hasn't. A link works everywhere.
+- Section 21 corrected. It said Rogal had no dates, which is wrong: `now()` is one of the 32 actions and the `dates` library does the arithmetic. It also said there was no error handling without mentioning `fail`.
+
 ## 0.9.4
 
 - The **+ library** button in the playground never worked. It was added in 0.9.3 with the button, the file picker and the storage all in place, but nothing joining them. Wired up, with the same rule as on a computer: a library name is letters, digits, `-` and `_`, never a path.
