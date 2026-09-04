@@ -42,7 +42,7 @@ python3 make-pdf.py
 It lives in one place, the top of `rogal-core.js`:
 
 ```js
-const ROGAL_VERSION = "0.9.5";
+const ROGAL_VERSION = "0.9.6";
 ```
 
 The build stamps it into the page and the PDF, so they can't drift apart. Bump it whenever the language changes, and add a line to `CHANGELOG.md` saying what happened.

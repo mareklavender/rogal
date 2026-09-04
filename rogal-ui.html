@@ -321,7 +321,7 @@
         <div class="ref-row"><code>get(address)</code><span>Fetch a web address, as text.</span></div>
         <div class="ref-row"><code>ask(question)</code><span>Ask the person something. Always gives text.</span></div>
         <div class="ref-row"><code>now()</code><span>A record: date, time, weekday, and the parts.</span></div>
-        <div class="ref-row"><code>&nbsp;</code><span>Each needs a line of its own, and none can be used inside an action.</span></div>
+        <div class="ref-row"><code>&nbsp;</code><span>Each needs a line of its own. An action made with <code>make</code> can't use them; one made with <code>reach</code> can.</span></div>
       </div>
     </div>
     <p class="footnote">Five decisions do most of the work: <strong>blocks end with <code>end</code></strong>, so indentation can never break a program; <strong>comparisons are words</strong>, so <code>=</code> and <code>==</code> can't be confused; <strong><code>set</code> creates and <code>change</code> alters</strong>, so a typo can never quietly make a second variable; <strong>a name holds a value, never a link to someone else's</strong>, so nothing changes at a distance; and <strong>lists count from 1</strong>, matching how people already count.</p>
@@ -558,7 +558,8 @@ end
 
 # Two rules keep this predictable:
 #   a kernel action needs a line of its own
-#   and can never be used inside an action.`},
+#   and an action made with "make" cannot use it.
+#   One that needs to says so, with "reach".`},
 
   { name:"counting", code:
 `# numbers() gives you a list to count through.
@@ -627,7 +628,7 @@ show ""
 # behind your back when you bring one in.
 show "February 2028 has " + days_in_month(2028, 2) + " days"`},
 
-  { name:"a table from text", code:
+  { name:"a table from text", broken:true, code:
 `use "csv"
 
 # csv is written in Rogal, like dates. Open csv.rogal and read it.
@@ -657,21 +658,12 @@ set ragged to join(["a,b", "1,2,3"], "\\n")
 set oops to csv_records(ragged)`},
 
   { name:"json", code:
-`set Q to text([1])
-change Q to slice(json("x"), 1, 1)
-use "json"
+`use "json"
 
 # get() hands back text. parse_json turns it into values.
-# This is the sort of thing an address would give you.
+# This is the sort of reply an address would give you.
 
-set reply to join([
-  "{",
-  "  " + Q + "name" + Q + ": " + Q + "Ada" + Q + ",",
-  "  " + Q + "born" + Q + ": 1815,",
-  "  " + Q + "tags" + Q + ": [" + Q + "maths" + Q + ", " + Q + "engines" + Q + "],",
-  "  " + Q + "active" + Q + ": true",
-  "}"
-], "\\n")
+set reply to "{\\"name\\": \\"Ada\\", \\"born\\": 1815, \\"tags\\": [\\"maths\\", \\"engines\\"], \\"active\\": true}"
 
 set person to parse_json(reply)
 

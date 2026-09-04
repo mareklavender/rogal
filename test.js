@@ -659,6 +659,44 @@ queue.push(async () => {
   else failures.push("the page must not park an empty editor before its first load");
 });
 
+/* ---------- reach must survive coming from a library ----------
+   The flag was set by the parser and dropped when a library action was
+   installed, so a library could never touch a file — the one thing the
+   keyword exists for. It worked in the program itself, which hid it.    */
+
+const reachLibHost = Object.assign({}, testHost, {
+  async library(name) {
+    if (name === "loader") return `reach load_lines(name)\n  give split(trim(read(name)), "\\n")\nend`;
+    if (name === "plain") return `make double(n)\n  give n * 2\nend`;
+    const e = new Error("no library"); e.rogal = true; e.line = 1; e.col = 1; e.len = 1; throw e;
+  },
+  async read() { return "a\nb\nc\n"; },
+});
+
+queue.push(async () => {
+  const r = await run(`use "loader"\nset ls to load_lines("x")\nshow count(ls)`, reachLibHost);
+  if (!r.error && r.output[0] === "3") passed++;
+  else failures.push("a reach action from a library must be able to read: " + (r.error ? r.error.message : r.output[0]));
+});
+
+queue.push(async () => {
+  const r = await run(`use "loader"\nmake wrap(n)\n  give load_lines(n)\nend\nset x to wrap("y")`, reachLibHost);
+  if (r.error && /ordinary action can't call it/.test(r.error.message)) passed++;
+  else failures.push("an ordinary action still must not call a reaching one from a library");
+});
+
+queue.push(async () => {
+  const r = await run(`use "loader"\nshow count(load_lines("x"))`, reachLibHost);
+  if (r.error && /line of its own/.test(r.error.message)) passed++;
+  else failures.push("a reaching action from a library still needs its own line");
+});
+
+queue.push(async () => {
+  const r = await run(`use "plain"\nshow double(21)`, reachLibHost);
+  if (!r.error && r.output[0] === "42") passed++;
+  else failures.push("an ordinary library action must still work");
+});
+
 /* ---------- report ---------- */
 
 (async () => {

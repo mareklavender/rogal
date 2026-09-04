@@ -21,7 +21,7 @@ Average: 17.5
 
 Small enough to hold in your head, and solid enough to write real scripts in. That makes it a good first language, and a reasonable one to stay with.
 
-**Status:** working prototype, v0.9.5. Licensed under Apache 2.0.
+**Status:** working prototype, v0.9.6. Licensed under Apache 2.0.
 
 ---
 
@@ -74,7 +74,7 @@ The reasoning behind these is in the [reference](rogal-reference.md), also avail
 - **An `if` takes only `true` or `false`.** Nothing is secretly true.
 - **Nothing is silently rounded.** A fractional count or position is an error, not a guess.
 - **Lists count from 1**, the way people do.
-- **Reaching outside is visible.** `read`, `write`, `get`, `ask` and `now` each need a line of their own and can't be used inside an action.
+- **Reaching outside is visible.** `read`, `write`, `get`, `ask` and `now` each need a line of their own, and an ordinary action can't use them. One that needs to says so, with `reach` instead of `make`.
 - **A library holds only actions.** Nothing runs behind your back when you bring one in.
 
 Working on the language itself is covered in [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.6
+
+- **`reach` didn't work from a library.** The flag was set when the file was parsed and dropped when the action was installed, so a library could never touch a file — the one thing the keyword exists for. It worked in your own program, which hid it. Now fixed, with tests.
+- Several places still said an action can never use `read`, `write`, `get`, `ask` or `now`. That stopped being true when `reach` arrived: an ordinary action can't, one made with `reach` can.
+- The library error said a library holds only `make` blocks. It holds `reach` blocks too.
+- The **json** example showed a trick for getting a quote mark rather than showing JSON. It now uses `use` first and a real escaped reply.
+- The **a table from text** example ends on a deliberate failure and is marked as such, so it doesn't look broken.
+
 ## 0.9.5
 
 - `ask` no longer uses the browser's prompt box, which mobile browsers suppress when the call doesn't come straight from a tap — so on a phone the question never appeared and the program stopped saying nothing was answered. The question now goes at the bottom of the output, with a field and a button, and works the same everywhere.

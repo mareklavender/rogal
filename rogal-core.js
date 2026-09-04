@@ -7,7 +7,7 @@
  * http://www.apache.org/licenses/LICENSE-2.0
  */
 
-const ROGAL_VERSION = "0.9.5";
+const ROGAL_VERSION = "0.9.6";
 
 /* ============================================================
    Rogal — core language
@@ -1844,7 +1844,7 @@ async function gatherLibraries(program, host, seen, chain) {
       if (s2.kind === "make") collected.push({ from: name, node: s2 });
       else if (s2.kind !== "use")
         throw new RogalError(`"${name}.rogal" has a line that isn't an action.`, st.nameTok,
-          { hint: `A library holds only "make" blocks and its own "use" lines. Line ${s2.tok ? s2.tok.line : "?"} of ${name}.rogal is something else.` });
+          { hint: `A library holds only actions — "make" or "reach" — and its own "use" lines. Line ${s2.tok ? s2.tok.line : "?"} of ${name}.rogal is something else.` });
     }
   }
   return collected;
@@ -1864,7 +1864,8 @@ async function run(source, host) {
         throw new RogalError(`Two actions are called "${node.name}".`, node.nameTok,
           { hint: `One comes from ${from}.rogal. Rename one of them.` });
       interp.globals.define(node.name,
-        { __action: true, name: node.name, params: node.params, body: node.body });
+        { __action: true, name: node.name, params: node.params, body: node.body,
+          reachesOut: node.reachesOut });
     }
 
     if (host) {
@@ -1880,7 +1881,7 @@ async function run(source, host) {
     return { output, error: null };
   } catch (e) {
     if (e instanceof GiveSignal)
-      return { output, error: { line: 1, col: 1, len: 1, message: `"give" only works inside an action made with "make".`, hint: null, fix: null } };
+      return { output, error: { line: 1, col: 1, len: 1, message: `"give" only works inside an action, made with "make" or "reach".`, hint: null, fix: null } };
     if (e instanceof StopSignal)
       return { output, error: { line: 1, col: 1, len: 1, message: `"stop" only works inside a loop.`, hint: null, fix: null } };
     if (e && e.rogal)

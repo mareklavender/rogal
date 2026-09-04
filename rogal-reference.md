@@ -1,6 +1,6 @@
 # Rogal — Language Reference
 
-**Version 0.9.5** · Complete. Every word the language has is in this document.
+**Version 0.9.6** · Complete. Every word the language has is in this document.
 
 Rogal has 32 words and 32 actions — 27 built in, and 5 that reach outside the program. That's the whole language: nothing to install and nothing to import.
 
@@ -935,7 +935,7 @@ Forget it and the error says where the text came from, with a button to wrap it:
 
 > Line 2: I can only multiply numbers, but got the text "10" and the number 2. `age` holds text, because that is what `ask` gives back. Wrap it in `number(age)` to do sums with it.
 
-**They can't be used inside an action.** Read at the top of your program, pass the value in, and get a value back:
+**They can't be used inside an ordinary action.** An action made with `make` sees only what you pass in. To let one touch the outside, start it with `reach` instead — see section 11. Otherwise read at the top of your program and pass the value in:
 
 ```rogal
 make count_lines(raw)
@@ -970,7 +970,7 @@ show weekday("2026-12-25")       # Friday
 
 `dates.rogal` sits next to your program, and every action it defines becomes available as though you'd written it yourself.
 
-**A library holds only actions.** `make` blocks, and `use` lines of its own — nothing else. A stray `show` in a library would run every time somebody included it, which is the kind of surprise the rest of the language works to avoid.
+**A library holds only actions.** `make` and `reach` blocks, and `use` lines of its own — nothing else. A stray `show` in a library would run every time somebody included it, which is the kind of surprise the rest of the language works to avoid.
 
 **`use` lines go at the top**, above your own code and never inside a block. All of them are followed before a single line runs, so a missing file or a clashing name is reported straight away rather than halfway through.
 
@@ -1002,7 +1002,7 @@ set things to parse_json(reply)
 show things[1].name
 ```
 
-They're written character by character, so they're quick for what an address gives back and slow for anything very large. A few thousand rows of CSV is a second or so; much past that and the program runs out of its time.
+They read text a character at a time, so they suit what an address gives back and not much more. A few thousand rows of CSV takes a second or so in a browser; `parse_json` on a large reply will run out of its allowance. On a computer the allowance is far bigger, so the same work goes through.
 
 ### Adding your own
 
@@ -1259,7 +1259,7 @@ Every word and every action, with where to read more. Words shape a program; act
 
 ### Actions that reach outside the program
 
-These five are different in kind. Each needs a line of its own, and nyou can be used inside an action — so everything you write yourself stays free of surprises.
+These five are different in kind. Each needs a line of its own, and an action made with `make` can't use them — so everything you write stays free of surprises unless you say otherwise with `reach`.
 
 | Action | What it does | Section |
 |---|---|---|
