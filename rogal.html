@@ -1290,11 +1290,11 @@ class Interpreter {
       const isBuiltin = this.builtins.has(name) && !scope.userNames().has(name);
       throw new RogalError(
         isBuiltin
-          ? `"${name}" is already the name of a built-in action.`
+          ? `"${name}" is a built-in action, so it can't also be a name.`
           : `"${name}" already exists.`,
         tok,
         isBuiltin
-          ? { hint: `Pick a different name, or you won't be able to use ${name}() any more.` }
+          ? { hint: `Give yours a different name.` }
           : {
               hint: `To give it a new value, use "change ${name} to ...".`,
               fix: what === "set" ? { line: tok.line, col: tok.col - 4, len: 3, replacement: "change" } : null
@@ -1425,8 +1425,8 @@ class Interpreter {
       // "set" refuses to shadow a built-in, and so must "change" — otherwise
       // one line quietly destroys an action for the rest of the program.
       if (this.builtins.vars.has(t.name))
-        throw new RogalError(`"${t.name}" is already the name of a built-in action.`, node.nameTok,
-          { hint: `Pick a different name, or you won't be able to use ${t.name}() any more.` });
+        throw new RogalError(`"${t.name}" is a built-in action, so it can't also be a name.`, node.nameTok,
+          { hint: `Give yours a different name.` });
       if (!scope.setExisting(t.name, value)) this.unknownName(t.name, node.nameTok, scope, true);
       return;
     }

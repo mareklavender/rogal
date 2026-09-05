@@ -201,11 +201,11 @@ There is no `=` in Rogal, so `=` and `==` can never be confused.
 ```rogal
 set count to 3
 ```
-> Line 1: `count` is already the name of a built-in action.
+> Line 1: `count` is a built-in action, so it can't also be a name.
 
 Names start with a letter or `_` and may contain letters, digits and `_`. They are case-sensitive.
 
-All 32 words and all 32 action names are taken, so neither `set count to 0` nor `set at to 1` will work — `at` belongs to `is at least` — `count` is already something. The error says which name clashed. Section 23 lists every one of them; `total`, `tally` and `how_many` are all free.
+All 32 words and all 32 action names are taken. `set count to 0` won't work because `count` is an action, and `set at to 1` won't either because `at` belongs to `is at least`. The error says which one clashed. Section 23 lists them all; `total`, `tally` and `how_many` are free.
 
 `change` also reaches inside lists and records:
 
