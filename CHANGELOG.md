@@ -1,56 +1,63 @@
 # Changelog
 
+## 0.9.8
+
+- `change` can no longer overwrite a built-in action. `set count to 1` was refused but `change count to 1` was not, which destroyed the action for the rest of the program.
+
+## 0.9.7
+
+- New motto: *A programming language built to be read by people, where every error points at the problem and explains it.*
+- The playground's opening line no longer repeats the word counts or colours part of a sentence.
+
 ## 0.9.6
 
-- **`reach` didn't work from a library.** The flag was set when the file was parsed and dropped when the action was installed, so a library could never touch a file — the one thing the keyword exists for. It worked in your own program, which hid it. Now fixed, with tests.
-- Several places still said an action can never use `read`, `write`, `get`, `ask` or `now`. That stopped being true when `reach` arrived: an ordinary action can't, one made with `reach` can.
-- The library error said a library holds only `make` blocks. It holds `reach` blocks too.
-- The **json** example showed a trick for getting a quote mark rather than showing JSON. It now uses `use` first and a real escaped reply.
-- The **a table from text** example ends on a deliberate failure and is marked as such, so it doesn't look broken.
+- `reach` now works when the action comes from a library, not only from your own program.
+- Corrected the places that said an action can never use `read`, `write`, `get`, `ask` or `now`. An ordinary action can't; one made with `reach` can.
+- The **json** example shows real JSON instead of a way to get a quote mark.
+- The **a table from text** example is marked as ending on a deliberate failure.
 
 ## 0.9.5
 
-- `ask` no longer uses the browser's prompt box, which mobile browsers suppress when the call doesn't come straight from a tap — so on a phone the question never appeared and the program stopped saying nothing was answered. The question now goes at the bottom of the output, with a field and a button, and works the same everywhere.
+- `ask` puts its question at the bottom of the output rather than in a browser prompt box, so it works on phones.
 - An **asking** example in the playground.
-- The README is reordered. It told you to download a file, then mentioned two sections later that a link was better — both true, wrong way round. "Trying it" now leads with the link, and "Sharing it" is gone since it was really about trying it.
-- The README no longer suggests Documents by Readdle for iPhones. It was the workaround before there was a hosted page, and it blocks downloads, so `write` looks as though it has failed when it hasn't. A link works everywhere.
-- Section 21 corrected. It said Rogal had no dates, which is wrong: `now()` is one of the 32 actions and the `dates` library does the arithmetic. It also said there was no error handling without mentioning `fail`.
+- The README leads with the link, since that is the easiest way to try Rogal.
+- Corrected section 21: `now()` and the `dates` library mean Rogal does have dates, and `fail` is a way to stop a program deliberately.
 
 ## 0.9.4
 
-- The **+ library** button in the playground never worked. It was added in 0.9.3 with the button, the file picker and the storage all in place, but nothing joining them. Wired up, with the same rule as on a computer: a library name is letters, digits, `-` and `_`, never a path.
-- Words from other languages now teach instead of confusing. `print` said "create it first with: set print to ..."; it now says to use `show`. Around fifty of them, covering Python, JavaScript, Ruby and shell habits: `len`, `return`, `function`, `var`, `null`, `append`, `str`, `input`, `range`, `import`, `elif`, `then`, `class`, `break`, `try` and the rest.
+- The **+ library** button works.
+- About fifty words from other languages — `print`, `len`, `return`, `function`, `var`, `null`, `elif`, `class`, `try` — now point to the Rogal equivalent.
 - `is equal`, `is equal to` and `is equals` say that `is` is the whole comparison.
-- A genuine typo still gets the "did you mean" suggestion, so the two don't get in each other's way.
+- A genuine typo still gets its "did you mean" suggestion.
 
 ## 0.9.3
 
-- A `json` library, written in Rogal: `parse_json` turns JSON text into records, lists, numbers, `true`, `false` and `nothing`, and `json` turns them back. `get` hands you text, so without this the first useful thing anyone tries ends in writing a parser.
-- The **+ library** button in the playground takes a `.rogal` file of your own and makes `use` find it. One you add wins over one that shipped, the same way a file beside your program does on a computer.
+- A `json` library, written in Rogal. `parse_json` turns JSON text into values, and `json` turns them back.
+- The **+ library** button takes a `.rogal` file of your own and makes `use` find it. Yours wins over one that shipped.
 - Apache 2.0, with a notice at the top of each source file.
-- Text is written on one line; the reference now says so, and shows `join` as the way to write a block.
-- A parse error inside a library named the file twice.
+- Text is written on one line. The reference shows `join` as the way to write a block.
+- Fixed a parse error inside a library naming the file twice.
 
 ## 0.9.2
 
-- Numbers are compared the way they're shown. `0.1 + 0.2` displayed as `0.3` but wasn't equal to it, which was worse than showing the long version — the display hid the discrepancy.
-- `reach` creates an action that may use `read`, `write`, `get`, `ask` and `now`. It follows the same rules they do: a line of its own, and never called from an ordinary action. Without this, no library could open a file, and a standard library could only shuffle values already in memory.
-- `fail "message"` stops a program with a message you write, so a library can say the input is the wrong shape instead of letting it become a confusing error later.
+- Numbers are compared the way they are shown, so `0.1 + 0.2` equals `0.3`.
+- `reach` creates an action that may use `read`, `write`, `get`, `ask` and `now`, under the same rules they follow.
+- `fail "message"` stops a program with a message you write.
 - A `csv` library, written in Rogal: rows, records, quoted fields, and back to text.
-- `\r` works as an escape. Without it `"\r"` was the letter r, so stripping Windows line endings quietly stripped every r in the file.
-- An error inside a library says which file it came from, and no longer points a caret at the wrong line of your program.
+- `\r` works as an escape.
+- An error inside a library says which file it came from.
 
 ## 0.9.0
 
-- The playground can save and open files. There's a filename field, a **Save** button that downloads what you've written, and an **Open** button that loads a `.rogal` file back in. Ctrl+S and Ctrl+O work too.
+- The playground can save and open files, with a filename field and **Save** and **Open** buttons. Ctrl+S and Ctrl+O work too.
 - A **blank** chip for starting from nothing.
-- Loading an example, starting blank or opening a file now asks first if you'd lose unsaved work.
+- Loading an example or opening a file asks first if you would lose unsaved work.
 - The README is for people using Rogal; working on the language itself moved to `CONTRIBUTING.md`.
-- Counted the actions again: 30 words and 32 actions, of which 27 are built in and 5 reach outside the program.
+- Recounted: 30 words and 32 actions, of which 27 are built in and 5 reach outside the program.
 
 ## 0.8.0
 
-- Renamed from Plain to Rogal. Files are now `.rogal`, the library is `dates.rogal`, and the playground is `rogal.html`. Nothing about the language changed.
+- Renamed from Plain to Rogal. Files are now `.rogal`, and the playground is `rogal.html`. Nothing about the language changed.
 
 ## 0.7.1
 
@@ -60,9 +67,9 @@
 
 ## 0.7.0
 
-- `use "dates"` brings in the actions from another file. Libraries hold only actions, `use` lines sit at the top, and everything is followed before the program runs — so a missing file, a clashing name or a circle is reported straight away.
+- `use "dates"` brings in the actions from another file. A missing file, a clashing name or a circle is reported before the program runs.
 - `dates` travels with the playground, so `use "dates"` works in a browser as well as on a computer.
-- The reference no longer lists plans or a history of what was settled. It describes the language as it is; this file covers the rest.
+- The reference describes the language as it is, without plans or history.
 
 ## 0.6.2
 
