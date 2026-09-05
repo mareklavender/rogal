@@ -1,14 +1,5 @@
 # Changelog
 
-## 0.9.8
-
-- `change` can no longer overwrite a built-in action. `set count to 1` was refused but `change count to 1` was not, which destroyed the action for the rest of the program.
-
-## 0.9.7
-
-- New motto: *A programming language built to be read by people, where every error points at the problem and explains it.*
-- The playground's opening line no longer repeats the word counts or colours part of a sentence.
-
 ## 0.9.6
 
 - `reach` now works when the action comes from a library, not only from your own program.

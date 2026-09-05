@@ -70,7 +70,6 @@
     font-family:var(--body);font-size:clamp(1.02rem,3.6vw,1.22rem);
     margin:14px 0 0;max-width:44ch;color:var(--ink)
   }
-  .standfirst em{font-style:italic;color:var(--ditto)}
 
   /* ---- exercises ---- */
   .exercises{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 14px}
@@ -221,7 +220,7 @@
   <header class="masthead">
     <p class="eyebrow">Version 0.9.6 · runs entirely in this page</p>
     <h1 class="wordmark">Ro<span class="gee">g</span>al</h1>
-    <p class="standfirst">A small language that's easy to write, where every error <em>points at the problem and explains it</em>. Thirty-two words, one way to write each thing.</p>
+    <p class="standfirst">A programming language built to be read by people, where every error points at the problem and explains it.</p>
   </header>
 
   <div class="exercises" id="exercises"></div>
@@ -1423,6 +1422,11 @@ class Interpreter {
     const t = node.target;
 
     if (t.kind === "name") {
+      // "set" refuses to shadow a built-in, and so must "change" — otherwise
+      // one line quietly destroys an action for the rest of the program.
+      if (this.builtins.vars.has(t.name))
+        throw new RogalError(`"${t.name}" is the name of a built-in action, so it can't be changed.`, node.nameTok,
+          { hint: `Pick a different name for your own value. "${t.name}(...)" needs to keep working.` });
       if (!scope.setExisting(t.name, value)) this.unknownName(t.name, node.nameTok, scope, true);
       return;
     }

@@ -12,7 +12,7 @@ Two ways, depending on what you're doing.
 
 ### In a browser
 
-Open `rogal.html`, or go to [rogallang.netlify.app](https://rogallang.netlify.app). Nothing to install, and the examples and a short reference are built into the page. On a computer either works; on a phone, use the link.
+Open `rogal.html`, or go to rogallang.netlify.app. Nothing to install, and the examples and a short reference are built into the page. On a computer either works; on a phone, use the link.
 
 Write a program and press **Run**, or Ctrl + Enter. **Save** downloads it as a `.rogal` file, using whatever name is in the box beside the button; **Open** loads one back in. The **blank** chip clears the editor to start from nothing. If you'd lose unsaved work, you're asked first.
 

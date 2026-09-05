@@ -1,6 +1,6 @@
 # Rogal
 
-A small language that's easy to write, where every error points at the problem and explains it.
+A programming language built to be read by people, where every error points at the problem and explains it.
 
 32 words and 32 actions. One way to write each thing. Blocks close with `end`, so indentation can never break a program. Comparisons are words, so `=` and `==` can't be muddled. Every error names the line, underlines the word and explains the cause; most suggest what to do next, and a few offer the fix as a button.
 
@@ -27,7 +27,7 @@ Small enough to hold in your head, and solid enough to write real scripts in. Th
 
 ## Trying it
 
-Go to **[rogallang.netlify.app](https://rogallang.netlify.app)**. Nothing to install — the whole language is in the page, with examples, a reference panel and somewhere to write.
+Go to **rogallang.netlify.app**. Nothing to install — the whole language is in the page, with examples, a reference panel and somewhere to write.
 
 To keep a copy, download [`rogal.html`](rogal.html) and open it in a browser on a computer. On a phone, use the link: phone browsers often block JavaScript in a local page, so the downloaded file opens with nothing working. To host your own copy, [Netlify Drop](https://app.netlify.com/drop) takes a drag and no account.
 

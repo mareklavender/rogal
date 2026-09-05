@@ -1092,6 +1092,11 @@ class Interpreter {
     const t = node.target;
 
     if (t.kind === "name") {
+      // "set" refuses to shadow a built-in, and so must "change" — otherwise
+      // one line quietly destroys an action for the rest of the program.
+      if (this.builtins.vars.has(t.name))
+        throw new RogalError(`"${t.name}" is the name of a built-in action, so it can't be changed.`, node.nameTok,
+          { hint: `Pick a different name for your own value. "${t.name}(...)" needs to keep working.` });
       if (!scope.setExisting(t.name, value)) this.unknownName(t.name, node.nameTok, scope, true);
       return;
     }

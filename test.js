@@ -697,6 +697,29 @@ queue.push(async () => {
   else failures.push("an ordinary library action must still work");
 });
 
+/* ---------- built-in names are protected from both words ----------
+   "set count to 1" was refused but "change count to 1" was not, so one
+   line could destroy an action for the rest of the program.            */
+
+fails("change can't overwrite a built-in", `change count to 1`, "built-in action");
+fails("nor any other one", `change slice to 1`, "built-in action");
+fails("set still can't either", `set count to 1`, "built-in action");
+shows("ordinary changing still works", `set total to 0\nchange total to 5\nshow total`, ["5"]);
+shows("record fields still work", `set p to {a: 1}\nchange p.a to 2\nshow p.a`, ["2"]);
+shows("list items still work", `set xs to [1, 2]\nchange xs[1] to 9\nshow xs`, ["[9, 2]"]);
+
+queue.push(async () => {
+  const src = fs.readFileSync(__dirname + "/rogal-core.js", "utf8");
+  const actions = [...new Set([...src.matchAll(/\bdef\("([a-z_]+)"/g)].map(m => m[1]))];
+  const leaks = [];
+  for (const a of actions) {
+    const r = await run(`change ${a} to 1`);
+    if (!r.error) leaks.push(a);
+  }
+  if (leaks.length === 0) passed++;
+  else failures.push("these actions can still be overwritten with change: " + leaks.join(", "));
+});
+
 /* ---------- report ---------- */
 
 (async () => {
